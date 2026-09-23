@@ -3,121 +3,122 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>뇌졸중 예측 챌린지 · 순위판</title>
-<link rel="stylesheet" href="assets/style.css?v=1">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏆</text></svg>">
-<style>
-  .wrap { --maxw: 1100px; }
-  main { max-width: 1100px; }
-
-  /* 조작 줄 */
-  .ctl { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin:.4rem 0 1.2rem; }
-  .ctl .seg { display:flex; border:1px solid var(--border); border-radius:999px; overflow:hidden; background:var(--card); }
-  .ctl .seg button { border:0; background:transparent; padding:.45rem 1rem; font-size:.95rem;
-    color:var(--text-soft); cursor:pointer; font-family:var(--font); }
-  #목표 { flex-wrap:wrap; border-radius:14px; }   /* 좁은 화면에서는 목표 버튼이 두 줄로 내려간다 */
-  .ctl .seg button.on { background:var(--accent); color:#fff; font-weight:700; }
-  .ctl .live { margin-left:auto; font-size:.85rem; color:var(--muted); display:flex; align-items:center; gap:.4rem; }
-  .dot { width:.5rem; height:.5rem; border-radius:50%; background:var(--green); }
-  .dot.off { background:var(--muted); }
-
-  /* 시상대 */
-  .podium { display:grid; grid-template-columns:repeat(3,1fr); gap:.9rem; margin:.2rem 0 1.4rem; }
-  .pod { border:1px solid var(--border-soft); border-radius:var(--radius); background:var(--bg);
-    padding:1rem .9rem; text-align:center; position:relative; min-width:0; }
-  .pod .medal { font-size:1.9rem; line-height:1; }
-  .pod .who { font-weight:800; font-size:1.05rem; margin:.35rem 0 .1rem; overflow-wrap:anywhere; }
-  .pod .cls { font-size:.78rem; color:var(--muted); }
-  .pod .big { font-size:2.3rem; font-weight:800; color:var(--accent); line-height:1.1; margin:.3rem 0 0; }
-  .pod .big span { font-size:.95rem; font-weight:600; color:var(--text-soft); }
-  .pod .set { font-size:.75rem; color:var(--text-soft); margin-top:.45rem; overflow-wrap:anywhere; }
-  .pod.first { background:linear-gradient(180deg,#fff3cf,#fff9ea); border-color:var(--gold); box-shadow:var(--shadow-lg); }
-  .pod.empty { opacity:.45; }
-
-  /* 요약 */
-  .kpi { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.8rem; margin:0 0 1.4rem; }
-  .kpi > div { border:1px solid var(--border-soft); border-radius:var(--radius-sm); padding:.7rem .85rem; background:var(--bg); }
-  .kpi .t { font-size:.82rem; color:var(--text-soft); }
-  .kpi .v { font-size:1.55rem; font-weight:800; color:var(--text); }
-
-  /* 순위표 */
-  .board { width:100%; border-collapse:separate; border-spacing:0 .4rem; }
-  .board th { font-size:.8rem; color:var(--text-soft); text-align:left; padding:0 .6rem .2rem; font-weight:700; }
-  .board td { background:var(--bg); border-top:1px solid var(--border-soft); border-bottom:1px solid var(--border-soft);
-    padding:.55rem .6rem; font-size:.93rem; vertical-align:middle; }
-  .board td:first-child { border-left:1px solid var(--border-soft); border-radius:var(--radius-sm) 0 0 var(--radius-sm); }
-  .board td:last-child  { border-right:1px solid var(--border-soft); border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
-  .board tr.beat td { background:var(--green-soft); border-color:#cfe3c4; }
-  .board tr.fresh td { animation: 반짝 1.6s ease-out 1; }
-  @keyframes 반짝 { from { background:#fff1c9; } to {} }
-  .rank { font-weight:800; color:var(--muted); width:2.4rem; text-align:center; }
-  .rank.m { font-size:1.15rem; }
-  .nick { font-weight:700; overflow-wrap:anywhere; }
-  .badge3 { display:inline-block; white-space:nowrap; font-size:.68rem; font-weight:700;
-    padding:.08rem .45rem; border-radius:999px; background:var(--red); color:#fff;
-    margin-left:.35rem; vertical-align:middle; }
-  .badge2 { display:inline-block; white-space:nowrap; font-size:.68rem; font-weight:700;
-    padding:.08rem .45rem; border-radius:999px; background:var(--gold); color:#4a3608;
-    margin-left:.35rem; vertical-align:middle; }
-  .nick { line-height:1.45; }
-  .bar { position:relative; height:1.5rem; background:var(--border-soft); border-radius:999px; overflow:hidden; min-width:90px; }
-  .bar i { position:absolute; inset:0 auto 0 0; background:var(--accent); border-radius:999px; }
-  .bar b { position:relative; display:block; text-align:center; line-height:1.5rem; font-size:.82rem; color:var(--text); }
-  .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .set2 { font-size:.76rem; color:var(--text-soft); overflow-wrap:anywhere; }
-  .quiet { color:var(--text-soft); font-size:.9rem; }
-  .up { color:var(--green); font-weight:800; } .down { color:var(--red); font-weight:800; } .same { color:var(--muted); }
-  #plot { width:100%; height:360px; }
-  @media (max-width:720px){
-    .podium { grid-template-columns:1fr; } .vs { grid-template-columns:1fr; }
-    .board .hide { display:none; }
-  }
-</style>
+<title>DS 건강검진센터 인턴 미션</title>
+<meta name="description" content="검진 기록으로 상담 전화를 걸 사람을 고르는 데이터 과학 챌린지의 안내와 순위판입니다.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩺</text></svg>">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="assets/board.css?v=7">
 </head>
 <body>
-<div class="topbar"><div class="inner">
-  <a class="brand" href="./"><span class="chick">🩺</span> 뇌졸중 예측 <span class="a">챌린지</span></a>
+<header class="topbar"><div class="inner">
+  <a class="logo" href="./"><span class="mark">DS</span>DS 건강검진센터</a>
+  <span class="title" id="eventTitle">인턴 미션</span>
   <span class="spacer"></span>
-  <span class="badge">참가자용</span>
-</div></div>
+  <span class="chip final" id="finalChip" hidden>🏁 최종 결과 발표</span>
+  <span class="chip" id="deadlineChip">⏱ 불러오는 중</span>
+</div></header>
 
-<div class="wrap">
-<main>
-  <span class="eyebrow">뇌졸중 예측 챌린지</span>
-  <h1>성능 높이기 <span class="a">챌린지 순위판</span></h1>
-  <div class="under"></div>
-  <p class="lead" id="설명">겨루는 동안의 순위입니다. F1이 높을수록 앞서고, 같으면 그 점수를 먼저 올린 팀이 앞섭니다.</p>
-  <p class="mini"><a href="app/" target="_blank" rel="noopener">🩺 실습실에서 기록 올리기 →</a></p>
+<main class="wrap">
+  <section class="intro">
+    <!-- (나) 센터장의 편지. 본문은 docs/letter_draft.txt 그대로 -->
+    <article class="letter signed" aria-label="센터장의 편지">
+      <div class="head">
+        <div class="org">DS 건강검진센터 센터장실<small>데이터 분석 인턴 여러분께</small></div>
+        <div class="date">날짜 <span>&nbsp;</span></div>
+      </div>
+      <p>DS 건강검진센터 센터장입니다. 새로 합류한 데이터 분석 인턴 여러분을 환영합니다. 올해 여러분의 첫 미션은 검진자 중 뇌졸중 위험이 있는 사람을 가려내어 상담 전화 대상을 정하는 모델을 만드는 것입니다. 작년 센터에서는 두 가지 일을 겪었습니다. 검진자 전원에게 상담 전화를 걸었더니 상담사가 감당하지 못했습니다. 위험이 아주 높은 사람에게만 전화를 걸었더니 환자 대부분을 놓쳤습니다.</p>
+      <p>이 상황을 이해하려면 두 숫자를 알아야 합니다. 정밀도는 전화를 받은 사람 가운데 실제 환자의 비율입니다. 재현율은 실제 환자 가운데 전화를 받은 사람의 비율입니다. 정밀도를 올리면 재현율이 내려가고 재현율을 올리면 정밀도가 내려갑니다. 한쪽을 올리면 다른 쪽이 내려가는 관계입니다.</p>
+      <p>센터는 환자를 놓치는 일을 헛전화보다 두 배 무겁게 봅니다. 그래서 평가는 재현율을 정밀도의 두 배로 치는 점수인 F2로 합니다. 이 점수는 정밀도와 재현율 두 값 중 낮은 쪽에 끌려갑니다. 한쪽만 높여서는 좋은 점수를 얻을 수 없습니다.</p>
+      <p>실습실에서는 설정을 바꿔 가며 모델을 만들고 기록을 올립니다. 순위판은 팀명으로 공개되며 F2가 높을수록 앞서고 같은 점수면 먼저 올린 팀이 앞섭니다. 마감 뒤 최종 순위를 발표하고 등록한 이메일로 안내합니다.</p>
+      <p>점수만 쫓지 말고 왜 그 설정이 환자를 더 찾게 했는지 설명할 수 있어야 합니다. 모델이 선택한 기준이 실제 상담으로 이어지도록 스스로 납득할 수 있어야 합니다.</p>
+      <p>추신입니다. 인사팀에 인턴 등록 정보를 먼저 제출해 주십시오. 팀명, 소속, 성명, 이메일을 적어 주시면 됩니다. 소속과 성명은 센터장만 봅니다. 검진 기록은 교육용으로만 제공된 자료이며 실제 의료 판단에 사용하지 않습니다.</p>
+      <p class="sign">DS 건강검진센터 센터장 드림</p>
+      <div class="stamp" aria-hidden="true">센터장<br>확인</div>
+    </article>
 
-  <div class="ctl">
-    <div class="seg" id="모드">
-      <button data-v="F1" class="on">공개 순위 · F1</button>
-      <button data-v="F2">최종 순위 · F2</button>
+    <!-- (다) 미션 요약 -->
+    <article class="card" aria-label="미션 요약">
+      <span class="eyebrow">미션 요약</span>
+      <h2>상담 전화를 걸 사람 고르기</h2>
+      <div class="facts">
+        <div class="fact"><div class="t">학습 데이터(정답 있음)</div><div class="v"><a href="data/train.csv" download>train.csv</a></div></div>
+        <div class="fact"><div class="t">채점 데이터(정답 없음)</div><div class="v"><span id="mTest">—</span><small>명</small></div></div>
+        <div class="fact"><div class="t">공개 절반 · 순위판에 바로 반영</div><div class="v"><span id="mPublic">—</span><small>명</small></div></div>
+        <div class="fact"><div class="t">최종 절반 · 발표 때 공개</div><div class="v"><span id="mPrivate">—</span><small>명</small></div></div>
+        <div class="fact"><div class="t">팀당 제출 상한</div><div class="v" id="mMaxSub">—</div></div>
+        <div class="fact"><div class="t">마감</div><div class="v" id="mDeadline" style="font-size:1rem">—</div></div>
+      </div>
+      <p class="small quiet" style="margin:0 0 .6rem">채점 데이터 가운데 누구에게 전화를 걸지 번호 목록을 제출합니다. 전화 목록은 50명 이상이어야 합니다. 순위판의 점수는 공개 절반으로 계산하고, 최종 순위는 진행자가 공개할 때 최종 절반으로 다시 계산합니다.</p>
+      <div class="metric"><b>정밀도</b> <span class="f">= 찾은 환자 ÷ 전화한 사람</span><span class="d">전화를 받은 사람 가운데 실제 환자의 비율입니다. 낮으면 헛전화가 많습니다.</span></div>
+      <div class="metric"><b>재현율</b> <span class="f">= 찾은 환자 ÷ 전체 환자</span><span class="d">실제 환자 가운데 전화를 받은 사람의 비율입니다. 낮으면 놓친 환자가 많습니다.</span></div>
+      <div class="metric key"><b>F2</b> <span class="f">= 5 × 정밀도 × 재현율 ÷ (4 × 정밀도 + 재현율)</span><span class="d">재현율을 정밀도의 두 배로 치는 평가 점수입니다. 두 값 중 낮은 쪽에 끌려갑니다.</span></div>
+    </article>
+  </section>
+
+  <!-- (라) 진행 순서 -->
+  <section aria-label="진행 순서">
+    <h2>진행 순서</h2>
+    <div class="steps">
+      <div class="step"><span class="n">1</span><h3>인턴 등록</h3><p>실습실의 「성능 높이기」 화면에서 팀명·소속·성명·이메일을 등록합니다. 순위판에는 팀명만 공개됩니다. 등록하면 팀 열쇠가 나옵니다. 다른 컴퓨터에서 이어 하려면 열쇠가 필요합니다.</p></div>
+      <div class="step"><span class="n">2</span><h3>실습실에서 모델 만들기</h3><p>train 데이터로 입력 속성·모델·기준값을 바꿔 가며 검증 F2를 확인합니다.</p>
+        <div class="links"><a class="btn primary" href="app/" target="_blank" rel="noopener">🩺 실습실 열기</a></div></div>
+      <div class="step"><span class="n">3</span><h3>전화 목록 제출</h3><p>실습실에서 만든 목록을 제출하거나, 다른 도구로 만든 예측을 양식에 맞춰 올립니다.</p>
+        <div class="links">
+          <a class="btn" href="data/train.csv" download>train.csv</a>
+          <a class="btn" href="data/test.csv" download>test.csv</a>
+          <a class="btn" href="data/sample_submission.csv" download>제출 양식</a>
+        </div></div>
+      <div class="step"><span class="n">4</span><h3>순위판 확인</h3><p>제출하면 공개 절반의 점수가 바로 아래 순위판에 표시됩니다. 최종 순위는 마감 뒤 발표합니다.</p>
+        <div class="links"><a class="btn" href="#board">순위판으로 이동</a></div></div>
     </div>
-    <div class="live"><span class="dot" id="불"></span><span id="상태">읽는 중…</span></div>
-  </div>
+  </section>
 
-  <div class="podium" id="시상대"></div>
+  <!-- (마) 순위판 -->
+  <section id="board" aria-label="순위판">
+    <div class="boardhead">
+      <h2>순위판</h2>
+      <div class="seg" id="viewSeg" hidden>
+        <button type="button" data-v="public">공개 순위</button><button type="button" data-v="final">최종 순위</button>
+      </div>
+      <div class="live"><span class="dot off" id="liveDot"></span><span id="liveText">읽는 중입니다</span></div>
+    </div>
+    <p class="small quiet" id="boardLead" style="margin:0 0 .8rem"></p>
+    <div class="notice" id="notice" hidden></div>
 
-  <div class="kpi">
-    <div><div class="t">참가한 팀</div><div class="v" id="s인원">—</div></div>
-    <div><div class="t">올린 기록</div><div class="v" id="s시도">—</div></div>
-    <div><div class="t" id="s최고제목">지금 최고 F1</div><div class="v" id="s최고">—</div></div>
-  </div>
+    <div class="kpis">
+      <div class="kpi"><div class="t">참가 팀</div><div class="v" id="kTeams">—</div></div>
+      <div class="kpi"><div class="t">제출 수</div><div class="v" id="kSubs">—</div></div>
+      <div class="kpi"><div class="t" id="kBestLabel">지금 최고 F2</div><div class="v" id="kBest">—</div></div>
+      <div class="kpi"><div class="t">마감까지</div><div class="v" id="kLeft" style="font-size:1.05rem">—</div></div>
+    </div>
 
-  <h2>순위</h2>
-  <table class="board"><thead id="표머리"></thead><tbody id="순위"></tbody></table>
+    <div class="boss" aria-live="polite">
+      <div class="face" aria-hidden="true">👩‍⚕️</div>
+      <div><div class="who">센터장 한마디</div><div class="say" id="bossSay">순위판을 불러오고 있습니다.</div></div>
+    </div>
 
-  <h2>시간에 따른 기록</h2>
-  <div id="plot"></div>
-  <p class="mini">점 하나가 올린 기록 하나입니다. 가로축은 올린 시각, 세로축은 그 기록의 점수입니다.</p>
+    <div class="podium" id="podium"></div>
+
+    <div class="tablewrap">
+      <table class="board"><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+    </div>
+
+    <div class="card plotcard">
+      <h3>시간에 따른 기록</h3>
+      <div id="plot"></div>
+      <p class="small quiet" style="margin:.3rem 0 0">점 하나가 제출 하나입니다. 가로축은 제출 시각, 세로축은 공개 F2입니다. 선은 그 시각까지의 최고 기록입니다. 점수를 계산할 수 없는 제출은 표시하지 않습니다.</p>
+    </div>
+  </section>
 </main>
-</div>
 
-<footer class="foot">뇌졸중 예측 챌린지 · 데이터는 교육 목적으로만 사용합니다</footer>
+<!-- (사) 바닥글 -->
+<footer class="foot">
+  <p>데이터: Analytics Vidhya 「Healthcare Analytics」(2018) 훈련 파일 43,400명을 학습·채점용으로 나누었습니다. <a href="data/README.md">데이터 출처와 사용 조건</a></p>
+  <p>교육 목적으로만 사용합니다. 결과를 실제 의료 판단에 사용하지 않습니다.</p>
+</footer>
+
+<script src="config.js?v=3"></script>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
-<script src="key.js?v=3"></script>
-<script src="config.js"></script>
-<script src="app.js?v=2"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

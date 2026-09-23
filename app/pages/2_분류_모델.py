@@ -8,9 +8,10 @@ from sklearn.tree import DecisionTreeClassifier
 
 st.set_page_config(page_title="분류 모델", page_icon="🤖", layout="wide")
 st.title("🤖 분류 모델")
-st.write("뇌졸중을 겪었는지 아닌지를 맞히는 모델 두 개를 만들고, 훈련 데이터와 테스트 데이터에서 정확도를 봅니다.")
+st.write("뇌졸중을 겪었는지 아닌지를 맞히는 모델 두 개를 만들고, 훈련 데이터와 검증 데이터에서 정확도를 봅니다. "
+         "검증 데이터는 train 30,380명 안에서 떼어 둔 30%입니다. 채점용 test의 정답은 여기 없습니다.")
 
-데이터주소 = "https://raw.githubusercontent.com/greatsong/modudata/main/data/stroke.csv"
+from 공용 import 데이터_읽기 as 공용_데이터_읽기
 고를수있는열 = ["age", "avg_glucose_level", "bmi", "hypertension", "heart_disease"]
 기본열 = ["age", "avg_glucose_level", "hypertension", "heart_disease"]
 입력이름 = {"age": "나이", "avg_glucose_level": "평균 혈당", "bmi": "체질량지수",
@@ -22,7 +23,7 @@ st.write("뇌졸중을 겪었는지 아닌지를 맞히는 모델 두 개를 만
 @st.cache_data
 def 데이터_읽기():
     """번호 순으로 정렬해 둔다. 나누는 자리가 늘 같아야 점수를 비교할 수 있다."""
-    return pd.read_csv(데이터주소, encoding="utf-8").sort_values("id").reset_index(drop=True)
+    return 공용_데이터_읽기().sort_values("id").reset_index(drop=True)
 
 
 정식이름 = {"확률로 답하는 모델": "로지스틱 회귀", "질문으로 답하는 모델": "의사결정트리"}
@@ -44,46 +45,46 @@ if len(입력열) < 2:
     st.warning("속성을 두 개 이상 골라 주세요. 하나만으로는 그림의 두 축을 만들 수 없습니다.")
     st.stop()
 
-테스트용 = pd.Series(df.index % 10 < 3, index=df.index)   # 열 명씩 묶어 각 묶음의 앞 세 명이 테스트용
+검증용 = pd.Series(df.index % 10 < 3, index=df.index)   # 열 명씩 묶어 각 묶음의 앞 세 명이 검증용
 X = df[입력열].copy()
 y = df["stroke"]                                        # 1이면 뇌졸중, 0이면 아님. 뇌졸중이 양성이다
 if "bmi" in 입력열 and X["bmi"].isna().any():
-    중앙값 = float(X.loc[~테스트용, "bmi"].median())
+    중앙값 = float(X.loc[~검증용, "bmi"].median())
     X["bmi"] = X["bmi"].fillna(중앙값)
     st.warning(f"체질량지수가 비어 있는 사람은 훈련용의 중앙값 {중앙값:.1f}으로 채웠습니다.")
 
 
 def 학습(열들):
     """고른 열로 두 모델을 학습해 돌려준다. 설정은 늘 같다."""
-    훈련 = X.loc[~테스트용, 열들]
+    훈련 = X.loc[~검증용, 열들]
     크기맞추기 = StandardScaler().fit(훈련)   # 크기 맞추기도 훈련용으로만 한다
-    확률모델 = LogisticRegression(max_iter=2000).fit(크기맞추기.transform(훈련), y[~테스트용])
+    확률모델 = LogisticRegression(max_iter=2000).fit(크기맞추기.transform(훈련), y[~검증용])
     # 질문으로 답하는 모델은 값의 크기에 영향받지 않으므로 크기를 맞추지 않은 값을 그대로 사용한다
-    질문모델 = DecisionTreeClassifier(max_depth=3, min_samples_leaf=5, random_state=0).fit(훈련, y[~테스트용])
+    질문모델 = DecisionTreeClassifier(max_depth=3, min_samples_leaf=5, random_state=0).fit(훈련, y[~검증용])
     return 크기맞추기, 확률모델, 질문모델
 
 
 크기맞추기, 확률모델, 질문모델 = 학습(입력열)
-많은쪽 = int(y[~테스트용].mode()[0])                       # 훈련용에서 사람이 많은 범주
-실제 = y[테스트용].to_numpy()
+많은쪽 = int(y[~검증용].mode()[0])                       # 훈련용에서 사람이 많은 범주
+실제 = y[검증용].to_numpy()
 
-st.info(f"훈련용 {int((~테스트용).sum()):,}명(그중 뇌졸중 {int(y[~테스트용].sum()):,}명)으로 학습하고, "
-        f"테스트용 {int(테스트용.sum()):,}명(그중 실제 뇌졸중 {int(실제.sum()):,}명)으로 채점합니다.")
+st.info(f"훈련용 {int((~검증용).sum()):,}명(그중 뇌졸중 {int(y[~검증용].sum()):,}명)으로 학습하고, "
+        f"검증용 {int(검증용.sum()):,}명(그중 실제 뇌졸중 {int(실제.sum()):,}명)으로 채점합니다.")
 
-st.subheader("훈련 데이터와 테스트 데이터에서의 정확도")
-훈련답 = y[~테스트용].to_numpy()
-예측 = {"확률로 답하는 모델": 확률모델.predict(크기맞추기.transform(X[테스트용])),
-        "질문으로 답하는 모델": 질문모델.predict(X[테스트용]),
-        "한쪽으로만 답하는 모델": pd.Series(많은쪽, index=y[테스트용].index).to_numpy()}
-훈련예측 = {"확률로 답하는 모델": 확률모델.predict(크기맞추기.transform(X[~테스트용])),
-            "질문으로 답하는 모델": 질문모델.predict(X[~테스트용]),
-            "한쪽으로만 답하는 모델": pd.Series(많은쪽, index=y[~테스트용].index).to_numpy()}
+st.subheader("훈련 데이터와 검증 데이터에서의 정확도")
+훈련답 = y[~검증용].to_numpy()
+예측 = {"확률로 답하는 모델": 확률모델.predict(크기맞추기.transform(X[검증용])),
+        "질문으로 답하는 모델": 질문모델.predict(X[검증용]),
+        "한쪽으로만 답하는 모델": pd.Series(많은쪽, index=y[검증용].index).to_numpy()}
+훈련예측 = {"확률로 답하는 모델": 확률모델.predict(크기맞추기.transform(X[~검증용])),
+            "질문으로 답하는 모델": 질문모델.predict(X[~검증용]),
+            "한쪽으로만 답하는 모델": pd.Series(많은쪽, index=y[~검증용].index).to_numpy()}
 칸들 = st.columns(3)
 for 칸, (이름, 예측값) in zip(칸들, 예측.items()):
     칸.metric(병기(이름), f"{(예측값 == 실제).mean():.4f}")
-    칸.caption(f"훈련용 {(훈련예측[이름] == 훈련답).mean():.4f} · 테스트용 {(예측값 == 실제).mean():.4f}")
-st.caption("큰 숫자가 테스트 데이터의 정확도입니다. 소수 넷째 자리까지 적었습니다. 맨 오른쪽은 입력을 하나도 "
-           "보지 않고 훈련용에서 사람이 많은 쪽으로만 답하는 모델입니다. 테스트용 세 값을 적어 둡니다.")
+    칸.caption(f"훈련용 {(훈련예측[이름] == 훈련답).mean():.4f} · 검증용 {(예측값 == 실제).mean():.4f}")
+st.caption("큰 숫자가 검증 데이터의 정확도입니다. 소수 넷째 자리까지 적었습니다. 맨 오른쪽은 입력을 하나도 "
+           "보지 않고 훈련용에서 사람이 많은 쪽으로만 답하는 모델입니다. 검증용 세 값을 적어 둡니다.")
 
 st.subheader("고른 속성 가운데 둘을 축으로 놓고 본다")
 축칸 = st.columns(2)
@@ -91,13 +92,13 @@ st.subheader("고른 속성 가운데 둘을 축으로 놓고 본다")
 세로후보 = [열 for 열 in 입력열 if 열 != 가로]
 세로 = 축칸[1].selectbox("세로축", 세로후보, index=0, format_func=우리말)
 
-채점입력 = X[테스트용]
-# 두 축이 아닌 속성은 테스트 데이터의 중앙값에 세워 둔다. 위에서 채점한 그 모델을 그대로 그린다
+채점입력 = X[검증용]
+# 두 축이 아닌 속성은 검증 데이터의 중앙값에 세워 둔다. 위에서 채점한 그 모델을 그대로 그린다
 고정값 = {열: float(채점입력[열].median()) for 열 in 입력열 if 열 not in (가로, 세로)}
 
 
 def 눈금(열):
-    """테스트용에서 가장 작은 값부터 가장 큰 값까지 고르게 나눈 값들을 돌려준다."""
+    """검증용에서 가장 작은 값부터 가장 큰 값까지 고르게 나눈 값들을 돌려준다."""
     작은값, 큰값 = float(채점입력[열].min()), float(채점입력[열].max())
     큰값 = 큰값 if 큰값 > 작은값 else 작은값 + 1.0
     return [작은값 + (큰값 - 작은값) * i / (칸수 - 1) for i in range(칸수)]
@@ -135,9 +136,9 @@ if not (min(확률격자) <= 0.5 <= max(확률격자)):
     st.info(f"이 그림 안에서 확률이 가장 높은 자리도 {max(확률격자):.2f}입니다. "
             f"이 그림에서는 0.5 경계선이 보이지 않습니다.")
 고정설명 = " · ".join(f"{우리말(열)} {값:g}" for 열, 값 in 고정값.items())
-st.caption(f"점은 테스트 데이터이고 색은 실제 뇌졸중 여부입니다. 파란 선은 {병기('확률로 답하는 모델')}이 0.5로 가르는 자리, "
+st.caption(f"점은 검증 데이터이고 색은 실제 뇌졸중 여부입니다. 파란 선은 {병기('확률로 답하는 모델')}이 0.5로 가르는 자리, "
            f"옅은 색으로 나뉜 바탕은 {병기('질문으로 답하는 모델')}이 두 축을 나눈 칸입니다. 위에서 채점한 그 모델을 그렸습니다."
-           + (f" 두 축이 아닌 속성은 테스트 데이터의 중앙값({고정설명})으로 고정해 계산했습니다." if 고정값 else ""))
+           + (f" 두 축이 아닌 속성은 검증 데이터의 중앙값({고정설명})으로 고정해 계산했습니다." if 고정값 else ""))
 
 st.subheader(f"{병기('질문으로 답하는 모델')}은 어떤 순서로 물었는가")
 
@@ -149,10 +150,10 @@ def 가지그림(모델, 열들):
     더 묻지 않고 답을 내는 마디는 답에 따라 색을 달리한다.
     """
     나무 = 모델.tree_
-    훈련 = X.loc[~테스트용, 열들]
+    훈련 = X.loc[~검증용, 열들]
     지난자리 = 모델.decision_path(훈련).toarray()      # 사람마다 지나간 마디에 1이 선다
     온사람 = 지난자리.sum(axis=0)
-    뇌졸중 = 지난자리[y[~테스트용].to_numpy() == 1].sum(axis=0)
+    뇌졸중 = 지난자리[y[~검증용].to_numpy() == 1].sum(axis=0)
 
     줄 = ['digraph {', 'graph [ranksep=0.45 nodesep=0.28];',
           'node [shape=box style="filled,rounded" fontname="sans-serif" fontsize=13 '

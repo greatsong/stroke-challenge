@@ -3,124 +3,99 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>뇌졸중 예측 챌린지 · 진행자용 순위판</title>
-<link rel="stylesheet" href="assets/style.css?v=1">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏆</text></svg>">
+<meta name="robots" content="noindex, nofollow">
+<title>인턴 미션 진행자 화면</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗝️</text></svg>">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="assets/board.css?v=7">
 <style>
-  .wrap { --maxw: 1100px; }
-  main { max-width: 1100px; }
-
-  /* 조작 줄 */
-  .ctl { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin:.4rem 0 1.2rem; }
-  .ctl .seg { display:flex; border:1px solid var(--border); border-radius:999px; overflow:hidden; background:var(--card); }
-  .ctl .seg button { border:0; background:transparent; padding:.45rem 1rem; font-size:.95rem;
-    color:var(--text-soft); cursor:pointer; font-family:var(--font); }
-  #목표 { flex-wrap:wrap; border-radius:14px; }   /* 좁은 화면에서는 목표 버튼이 두 줄로 내려간다 */
-  .ctl .seg button.on { background:var(--accent); color:#fff; font-weight:700; }
-  .ctl .live { margin-left:auto; font-size:.85rem; color:var(--muted); display:flex; align-items:center; gap:.4rem; }
-  .dot { width:.5rem; height:.5rem; border-radius:50%; background:var(--green); }
-  .dot.off { background:var(--muted); }
-
-  /* 시상대 */
-  .podium { display:grid; grid-template-columns:repeat(3,1fr); gap:.9rem; margin:.2rem 0 1.4rem; }
-  .pod { border:1px solid var(--border-soft); border-radius:var(--radius); background:var(--bg);
-    padding:1rem .9rem; text-align:center; position:relative; min-width:0; }
-  .pod .medal { font-size:1.9rem; line-height:1; }
-  .pod .who { font-weight:800; font-size:1.05rem; margin:.35rem 0 .1rem; overflow-wrap:anywhere; }
-  .pod .cls { font-size:.78rem; color:var(--muted); }
-  .pod .big { font-size:2.3rem; font-weight:800; color:var(--accent); line-height:1.1; margin:.3rem 0 0; }
-  .pod .big span { font-size:.95rem; font-weight:600; color:var(--text-soft); }
-  .pod .set { font-size:.75rem; color:var(--text-soft); margin-top:.45rem; overflow-wrap:anywhere; }
-  .pod.first { background:linear-gradient(180deg,#fff3cf,#fff9ea); border-color:var(--gold); box-shadow:var(--shadow-lg); }
-  .pod.empty { opacity:.45; }
-
-  /* 요약 */
-  .kpi { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.8rem; margin:0 0 1.4rem; }
-  .kpi > div { border:1px solid var(--border-soft); border-radius:var(--radius-sm); padding:.7rem .85rem; background:var(--bg); }
-  .kpi .t { font-size:.82rem; color:var(--text-soft); }
-  .kpi .v { font-size:1.55rem; font-weight:800; color:var(--text); }
-
-  /* 순위표 */
-  .board { width:100%; border-collapse:separate; border-spacing:0 .4rem; }
-  .board th { font-size:.8rem; color:var(--text-soft); text-align:left; padding:0 .6rem .2rem; font-weight:700; }
-  .board td { background:var(--bg); border-top:1px solid var(--border-soft); border-bottom:1px solid var(--border-soft);
-    padding:.55rem .6rem; font-size:.93rem; vertical-align:middle; }
-  .board td:first-child { border-left:1px solid var(--border-soft); border-radius:var(--radius-sm) 0 0 var(--radius-sm); }
-  .board td:last-child  { border-right:1px solid var(--border-soft); border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
-  .board tr.beat td { background:var(--green-soft); border-color:#cfe3c4; }
-  .board tr.fresh td { animation: 반짝 1.6s ease-out 1; }
-  @keyframes 반짝 { from { background:#fff1c9; } to {} }
-  .rank { font-weight:800; color:var(--muted); width:2.4rem; text-align:center; }
-  .rank.m { font-size:1.15rem; }
-  .nick { font-weight:700; overflow-wrap:anywhere; }
-  .badge3 { display:inline-block; white-space:nowrap; font-size:.68rem; font-weight:700;
-    padding:.08rem .45rem; border-radius:999px; background:var(--red); color:#fff;
-    margin-left:.35rem; vertical-align:middle; }
-  .badge2 { display:inline-block; white-space:nowrap; font-size:.68rem; font-weight:700;
-    padding:.08rem .45rem; border-radius:999px; background:var(--gold); color:#4a3608;
-    margin-left:.35rem; vertical-align:middle; }
-  .nick { line-height:1.45; }
-  .bar { position:relative; height:1.5rem; background:var(--border-soft); border-radius:999px; overflow:hidden; min-width:90px; }
-  .bar i { position:absolute; inset:0 auto 0 0; background:var(--accent); border-radius:999px; }
-  .bar b { position:relative; display:block; text-align:center; line-height:1.5rem; font-size:.82rem; color:var(--text); }
-  .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .set2 { font-size:.76rem; color:var(--text-soft); overflow-wrap:anywhere; }
-  .quiet { color:var(--text-soft); font-size:.9rem; }
-  .up { color:var(--green); font-weight:800; } .down { color:var(--red); font-weight:800; } .same { color:var(--muted); }
-  #plot { width:100%; height:360px; }
-  @media (max-width:720px){
-    .podium { grid-template-columns:1fr; } .vs { grid-template-columns:1fr; }
-    .board .hide { display:none; }
-  }
+  .wrap { max-width: 1400px; }
+  .topbar .inner { max-width: 1400px; }
 </style>
 </head>
 <body>
-<div class="topbar"><div class="inner">
-  <a class="brand" href="./"><span class="chick">🩺</span> 뇌졸중 예측 <span class="a">챌린지</span></a>
+<header class="topbar"><div class="inner">
+  <a class="logo" href="./"><span class="mark">DS</span>DS 건강검진센터</a>
+  <span class="title" id="eventTitle">인턴 미션</span>
+  <span class="chip host">진행자 화면</span>
   <span class="spacer"></span>
-  <span class="badge">진행자용</span>
-</div></div>
+  <span class="chip final" id="finalChip" hidden>🏁 최종 결과 발표</span>
+  <span class="chip" id="deadlineChip">⏱ 불러오는 중</span>
+</div></header>
 
-<div class="wrap">
-<main>
-  <span class="eyebrow">뇌졸중 예측 챌린지</span>
-  <h1>성능 높이기 <span class="a">챌린지 · 진행자용</span></h1>
-  <div class="under"></div>
-  <p class="lead" id="설명">겨루는 동안의 순위입니다. F1이 높을수록 앞서고, 같으면 그 점수를 먼저 올린 팀이 앞섭니다.</p>
-  <p class="mini"><a href="./" target="_blank" rel="noopener">👀 참가자가 보는 순위판 →</a> · <a href="app/" target="_blank" rel="noopener">🩺 실습실</a></p>
-  <div class="callout warn"><div class="h">⚠️ 이 화면은 참가자와 공유하지 않습니다</div><p>팀마다 고른 설정이 그대로 보이고, 마감 전에도 최종(F2) 순위를 볼 수 있습니다. 참가자가 보는 순위판에는 모델 이름과 F1 순위만 나오며, 최종 순위는 config.js의 REVEAL을 true로 바꾼 뒤에 열립니다. 이 파일(host.html)은 주소를 아는 사람이면 누구나 열 수 있으므로 주소를 알리지 않습니다. <b>F1 최댓값은 0.3439</b>(로지스틱 회귀 · 나이·평균 혈당·심장병·결혼 여부·현재 흡연 · 기준값 0.80 · 찾아낸 환자 38명 · 안내 139명)이고 <b>F2 최댓값은 0.4726</b>(의사결정트리 질문 5번 · 나이·심장병·자영업·남성 · 기준값 0.60 · 찾아낸 환자 62명 · 안내 328명)입니다. 그보다 크거나 설정과 결과가 맞지 않는 기록은 「확인 필요」로 표시하고 순위에서 뺍니다.</p></div>
+<main class="wrap">
+  <div class="warnbox" role="note">
+    <b>진행자 전용 화면입니다.</b>
+    <ul>
+      <li>이 화면은 참가자와 공유하지 않습니다. 화면을 띄워 보여 줄 때는 참가자용 순위판(index.html)을 사용합니다.</li>
+      <li>이 주소(host.html)는 참가자에게 알리지 않습니다.</li>
+      <li>관리자 암호는 이 브라우저 탭에만 남고(세션 저장소), 탭을 닫으면 지워집니다. 서버에는 함수 호출에만 사용합니다.</li>
+    </ul>
+  </div>
 
-  <div class="ctl">
-    <div class="seg" id="모드">
-      <button data-v="F1" class="on">공개 순위 · F1</button>
-      <button data-v="F2">최종 순위 · F2</button>
+  <section class="card admin" aria-label="관리">
+    <form class="row" id="passForm" autocomplete="off">
+      <label for="passInput">관리자 암호</label>
+      <input type="password" id="passInput" placeholder="행사 등록 때 정한 암호">
+      <button class="btn primary" type="submit">명단 불러오기</button>
+      <button class="btn" type="button" id="passClear">암호 지우기</button>
+      <span class="msg" id="adminMsg"></span>
+    </form>
+    <div class="row">
+      <button class="btn warm primary" type="button" id="btnReveal">최종 점수 공개</button>
+      <button class="btn warm" type="button" id="btnHide">공개 취소</button>
+      <span class="quiet small">|</span>
+      <label for="deadlineInput">마감</label>
+      <input type="datetime-local" id="deadlineInput">
+      <button class="btn" type="button" id="btnDeadline">마감 설정</button>
+      <button class="btn" type="button" id="btnClearDeadline">마감 해제</button>
     </div>
-    <div class="live"><span class="dot" id="불"></span><span id="상태">읽는 중…</span></div>
-  </div>
+    <div class="row">
+      <button class="btn" type="button" id="btnCsv">안내용 CSV 내려받기</button>
+      <a class="btn" id="mailLink" href="#">메일 쓰기(전체 숨은참조)</a>
+      <span class="quiet small">최종 순위와 최종 F2는 공개 전에도 이 화면에서만 보입니다.</span>
+    </div>
+  </section>
 
-  <div class="podium" id="시상대"></div>
+  <section id="board" aria-label="순위판" style="margin-top:18px">
+    <div class="boardhead">
+      <h2>순위판</h2>
+      <div class="seg" id="viewSeg" hidden>
+        <button type="button" data-v="public">공개 순위</button><button type="button" data-v="final">최종 순위</button>
+      </div>
+      <div class="live"><span class="dot off" id="liveDot"></span><span id="liveText">읽는 중입니다</span></div>
+    </div>
+    <p class="small quiet" id="boardLead" style="margin:0 0 .8rem"></p>
+    <div class="notice" id="notice" hidden></div>
 
-  <div class="kpi">
-    <div><div class="t">참가한 팀</div><div class="v" id="s인원">—</div></div>
-    <div><div class="t">올린 기록</div><div class="v" id="s시도">—</div></div>
-    <div><div class="t" id="s최고제목">지금 최고 F1</div><div class="v" id="s최고">—</div></div>
-    <div><div class="t">확인 필요</div><div class="v" id="s의심">—</div></div>
-  </div>
+    <div class="kpis">
+      <div class="kpi"><div class="t">참가 팀</div><div class="v" id="kTeams">—</div></div>
+      <div class="kpi"><div class="t">제출 수</div><div class="v" id="kSubs">—</div></div>
+      <div class="kpi"><div class="t" id="kBestLabel">지금 최고 F2</div><div class="v" id="kBest">—</div></div>
+      <div class="kpi"><div class="t">마감까지</div><div class="v" id="kLeft" style="font-size:1.05rem">—</div></div>
+    </div>
 
-  <h2>순위</h2>
-  <table class="board"><thead id="표머리"></thead><tbody id="순위"></tbody></table>
+    <div class="boss" aria-live="polite">
+      <div class="face" aria-hidden="true">👩‍⚕️</div>
+      <div><div class="who">센터장 한마디</div><div class="say" id="bossSay">순위판을 불러오고 있습니다.</div></div>
+    </div>
 
-  <h2>시간에 따른 기록</h2>
-  <div id="plot"></div>
-  <p class="mini">점 하나가 올린 기록 하나입니다. 가로축은 올린 시각, 세로축은 그 기록의 점수입니다.</p>
+    <div class="podium" id="podium"></div>
+
+    <div class="tablewrap">
+      <table class="board"><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+    </div>
+
+    <div class="card plotcard">
+      <h3>시간에 따른 기록</h3>
+      <div id="plot"></div>
+    </div>
+  </section>
 </main>
-</div>
 
-<footer class="foot">뇌졸중 예측 챌린지 · 데이터는 교육 목적으로만 사용합니다</footer>
+<script>window.CHALLENGE_MODE = "host";</script>
+<script src="config.js?v=3"></script>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
-<script src="key.js?v=3"></script>
-<script src="config.js"></script>
-<script>window.CHALLENGE_MODE = "teacher";</script>
-<script src="app.js?v=2"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

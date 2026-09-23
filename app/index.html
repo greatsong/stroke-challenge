@@ -15,7 +15,7 @@
 <body>
   <div id="root">
     <div id="loading">
-      <h2>🩺 뇌졸중 예측 실습실</h2>
+      <h2>🩺 DS 건강검진센터 · 데이터 분석실</h2>
       <p>브라우저 안에서 파이썬을 준비하고 있습니다.</p>
       <p>처음 열 때 30초에서 1분쯤 걸립니다.</p>
     </div>
@@ -33,12 +33,13 @@
         files: {
           // 파이썬은 워커 안에서 돌아 window를 못 본다. 설정을 파일로 건네준다
           "config.json": { data: JSON.stringify(window.CHALLENGE_CONFIG || {}) },
-          "main.py": { url: "./main.py?v=s1" },
-          "pages/1_탐색.py": { url: "./pages/1_%ED%83%90%EC%83%89.py" },
-          "pages/2_분류_모델.py": { url: "./pages/2_%EB%B6%84%EB%A5%98_%EB%AA%A8%EB%8D%B8.py" },
-          "pages/3_채점표.py": { url: "./pages/3_%EC%B1%84%EC%A0%90%ED%91%9C.py" },
-          "pages/4_성능_높이기.py": { url: "./pages/4_%EC%84%B1%EB%8A%A5_%EB%86%92%EC%9D%B4%EA%B8%B0.py?v=s4" },
-          "pages/5_내가_만든_모델_소개.py": { url: "./pages/5_%EB%82%B4%EA%B0%80_%EB%A7%8C%EB%93%A0_%EB%AA%A8%EB%8D%B8_%EC%86%8C%EA%B0%9C.py?v=s4" },
+          "main.py": { url: "./main.py?v=k2" },
+          "공용.py": { url: "./%EA%B3%B5%EC%9A%A9.py?v=k2" },
+          "pages/1_탐색.py": { url: "./pages/1_%ED%83%90%EC%83%89.py?v=k3" },
+          "pages/2_분류_모델.py": { url: "./pages/2_%EB%B6%84%EB%A5%98_%EB%AA%A8%EB%8D%B8.py?v=k2" },
+          "pages/3_채점표.py": { url: "./pages/3_%EC%B1%84%EC%A0%90%ED%91%9C.py?v=k2" },
+          "pages/4_성능_높이기.py": { url: "./pages/4_%EC%84%B1%EB%8A%A5_%EB%86%92%EC%9D%B4%EA%B8%B0.py?v=k2" },
+          "pages/5_내가_만든_모델_소개.py": { url: "./pages/5_%EB%82%B4%EA%B0%80_%EB%A7%8C%EB%93%A0_%EB%AA%A8%EB%8D%B8_%EC%86%8C%EA%B0%9C.py?v=k2" },
         },
       },
       document.getElementById("root")
