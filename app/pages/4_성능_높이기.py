@@ -1,0 +1,527 @@
+# pages/4_성능_높이기.py — 전후를 나란히 놓고 채점한 뒤, 설정을 바꿔 가며 최고 점수에 도전한다
+import json
+from pathlib import Path
+from urllib.parse import quote
+
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.tree import DecisionTreeClassifier
+
+st.set_page_config(page_title="성능 높이기", page_icon="🏆", layout="wide")
+st.title("🏆 성능 높이기")
+st.write("데이터를 손보고 다시 학습해 전후를 나란히 놓고 본 뒤, 설정을 바꿔 가며 더 좋은 점수에 도전합니다.")
+
+데이터주소 = "https://raw.githubusercontent.com/greatsong/modudata/main/data/stroke.csv"
+고를수있는열 = ["age", "avg_glucose_level", "bmi", "hypertension", "heart_disease"]
+기본열 = ["age", "avg_glucose_level", "hypertension", "heart_disease"]
+입력이름 = {"age": "나이", "avg_glucose_level": "평균 혈당", "bmi": "체질량지수",
+            "hypertension": "고혈압", "heart_disease": "심장병"}
+
+
+def 설정_읽기():
+    """config.js의 CHALLENGE_CONFIG를 읽는다. 브라우저 밖(로컬 streamlit)에서는 기본값을 쓴다."""
+    기본 = {"url": "", "key": "", "table": "stroke_challenge_log", "event": "", "quota": 500, "form": ""}
+    try:
+        import js                                       # 브라우저에서 실행할 때만 있다
+        c = js.window.CHALLENGE_CONFIG
+        return {"url": str(c.SUPABASE_URL), "key": str(c.SUPABASE_KEY), "table": str(c.TABLE),
+                "event": str(c.EVENT), "quota": int(c.QUOTA), "form": str(c.FORM_URL or "")}
+    except Exception:
+        return 기본
+
+
+설정 = 설정_읽기()
+정원 = 설정["quota"]
+전이름, 후이름 = "고치기 전 (가중치 그대로)", "고친 뒤 (가중치를 같게)"
+칸수 = 60
+칸수3D = 26
+
+@st.cache_data
+def 데이터_읽기():
+    return pd.read_csv(데이터주소, encoding="utf-8")
+
+def 우리말(열):
+    return 입력이름[열]
+
+원본 = 데이터_읽기()
+
+고른열 = st.multiselect("입력으로 사용할 속성", 고를수있는열, default=기본열, format_func=우리말,
+                        help="처음에는 나이·평균 혈당·고혈압·심장병 네 가지가 골라져 있습니다.")
+입력열 = [열 for 열 in 고를수있는열 if 열 in 고른열]   # 고른 차례와 상관없이 늘 같은 순서로 둔다
+if len(입력열) < 2:
+    st.warning("속성을 두 개 이상 골라 주세요. 하나만으로는 그림의 두 축을 만들 수 없습니다.")
+    st.stop()
+
+빈값이름 = {"지운다": "지운다", "그대로 둔다": "중앙값으로 채운다"}   # 기록에는 왼쪽 이름으로 저장한다
+
+
+def 나누기(결측처리):
+    """빈 값 처리를 정해 '채점표' 페이지와 같은 방법으로 훈련용과 테스트용을 나눈다."""
+    df = 원본 if 결측처리 == "그대로 둔다" else 원본.dropna(subset=["bmi"])
+    df = df.sort_values("id").reset_index(drop=True)
+    테스트용 = pd.Series(df.index % 10 < 3, index=df.index)
+    X = df[입력열].copy()
+    if "bmi" in 입력열 and X["bmi"].isna().any():
+        X["bmi"] = X["bmi"].fillna(float(X.loc[~테스트용, "bmi"].median()))   # 훈련용의 중앙값으로 채운다
+    return df, 테스트용, X, df["stroke"]
+
+
+# 위쪽 비교는 전체 데이터로 한다. 빈 값 처리는 아래 챌린지에서 고른다
+df, 테스트용, X, y = 나누기("그대로 둔다")
+실제 = y[테스트용].to_numpy()
+if "bmi" in 입력열:
+    st.warning(f"체질량지수가 비어 있는 {int(원본['bmi'].isna().sum()):,}명은 훈련용의 중앙값으로 채웠습니다.")
+st.info(f"사용하는 사람은 {len(df):,}명이고 그중 뇌졸중은 {int(y.sum()):,}명입니다 · "
+        f"테스트용 {len(실제):,}명 가운데 실제 뇌졸중은 {int(실제.sum()):,}명입니다.")
+
+def 학습(가중치):
+    """가중치를 맞출지 정해 두 모델을 학습해 돌려준다."""
+    맞춤 = "balanced" if 가중치 else None
+    크기맞추기 = StandardScaler().fit(X[~테스트용])
+    확률모델 = LogisticRegression(max_iter=2000, class_weight=맞춤).fit(
+        크기맞추기.transform(X[~테스트용]), y[~테스트용])
+    질문모델 = DecisionTreeClassifier(max_depth=3, min_samples_leaf=5, random_state=0,
+                                      class_weight=맞춤).fit(X[~테스트용], y[~테스트용])
+    return 크기맞추기, 확률모델, 질문모델
+
+모델 = {전이름: 학습(False), 후이름: 학습(True)}
+예측 = {}
+for 상태, (크기맞추기, 확률모델, 질문모델) in 모델.items():
+    예측[상태] = {"확률로 답하는 모델": 확률모델.predict(크기맞추기.transform(X[테스트용])),
+                  "질문으로 답하는 모델": 질문모델.predict(X[테스트용])}
+
+def 네칸(실제값, 예측값):
+    """테스트용뿐 아니라 훈련용도 셀 수 있도록 실제값을 함께 받는다."""
+    TP = int(((실제값 == 1) & (예측값 == 1)).sum())
+    FN = int(((실제값 == 1) & (예측값 == 0)).sum())
+    FP = int(((실제값 == 0) & (예측값 == 1)).sum())
+    TN = int(((실제값 == 0) & (예측값 == 0)).sum())
+    return TP, FN, FP, TN
+
+def 지표(TP, FN, FP, TN):
+    정확도 = (TP + TN) / (TP + FN + FP + TN)
+    정밀도 = TP / (TP + FP) if (TP + FP) > 0 else None
+    재현율 = TP / (TP + FN) if (TP + FN) > 0 else None
+    # F1은 정밀도와 재현율로만 구한다. 둘 중 하나라도 없거나 합이 0이면 구할 수 없다
+    F1 = (2 * 정밀도 * 재현율 / (정밀도 + 재현율)
+          if 정밀도 is not None and 재현율 is not None and (정밀도 + 재현율) > 0 else None)
+    return 정확도, 정밀도, 재현율, F1
+
+정식이름 = {"확률로 답하는 모델": "로지스틱 회귀", "질문으로 답하는 모델": "의사결정트리"}
+
+def 병기(이름):
+    """교과서의 정식 이름을 앞에 두고 교재에서 쓰는 이름을 괄호로 붙인다."""
+    return f"{정식이름[이름]}({이름})" if 이름 in 정식이름 else 이름
+
+def 소수(값):
+    return "계산할 수 없음" if 값 is None else f"{값:.4f}"
+
+st.subheader("고치기 전과 고친 뒤")
+for 모델이름 in ("확률로 답하는 모델", "질문으로 답하는 모델"):
+    st.markdown(f"**{병기(모델이름)}**")
+    칸 = {}
+    for 상태 in 예측:
+        TP, FN, FP, TN = 네칸(실제, 예측[상태][모델이름])
+        정확도, 정밀도, 재현율, F1 = 지표(TP, FN, FP, TN)
+        칸[상태] = [f"{TP}명", f"{FP}명", f"{FN}명", f"{TN:,}명",
+                    소수(정확도), 소수(재현율), 소수(정밀도), 소수(F1)]
+    비교표 = pd.DataFrame(칸, index=["TP (찾아낸 환자)", "FP (헛짚은 사람)", "FN (놓친 환자)", "TN",
+                                     "정확도", "재현율", "정밀도", "F1"])
+    비교표.index.name = ""
+    st.table(비교표)
+    전 = 네칸(실제, 예측[전이름][모델이름])
+    후 = 네칸(실제, 예측[후이름][모델이름])
+    st.caption(f"찾아낸 환자 {전[0]}명 → {후[0]}명 · 놓친 환자 {전[1]}명 → {후[1]}명 · "
+               f"헛짚은 사람 {전[2]}명 → {후[2]}명")
+
+st.subheader("가중치를 맞추자 경계선이 어디로 움직였는가")
+축칸 = st.columns(2)
+가로 = 축칸[0].selectbox("가로축", 입력열, index=0, format_func=우리말)
+세로후보 = [열 for 열 in 입력열 if 열 != 가로]
+세로 = 축칸[1].selectbox("세로축", 세로후보, index=0, format_func=우리말)
+
+채점입력 = X[테스트용]
+고정값 = {열: float(채점입력[열].median()) for 열 in 입력열 if 열 not in (가로, 세로)}
+색깔 = {전이름: "#2563eb", 후이름: "#dc2626"}
+
+def 눈금(열, 개수):
+    """테스트용에서의 가장 작은 값부터 가장 큰 값까지 고르게 나눈 값들을 돌려준다."""
+    작은값, 큰값 = float(채점입력[열].min()), float(채점입력[열].max())
+    if 큰값 <= 작은값:
+        큰값 = 작은값 + 1.0
+    폭 = (큰값 - 작은값) / (개수 - 1)
+    return [작은값 + 폭 * i for i in range(개수)]
+
+def 두줄로(값들, 개수):
+    """한 줄로 늘어선 값을 세로줄마다 잘라 표 모양으로 만든다."""
+    return [값들[i * 개수:(i + 1) * 개수] for i in range(개수)]
+
+가로눈금, 세로눈금 = 눈금(가로, 칸수), 눈금(세로, 칸수)
+격자 = pd.DataFrame([dict(고정값, **{가로: 가, 세로: 세}) for 세 in 세로눈금 for 가 in 가로눈금])[입력열]
+
+그림2D = go.Figure()
+밖으로나간것 = []
+for 상태 in (전이름, 후이름):
+    크기맞추기, 확률모델, _ = 모델[상태]
+    확률격자 = 확률모델.predict_proba(크기맞추기.transform(격자))[:, 1].tolist()
+    그림2D.add_trace(go.Contour(x=가로눈금, y=세로눈금, z=두줄로(확률격자, 칸수),
+                                contours=dict(coloring="lines", start=0.5, end=0.5, size=1),
+                                line=dict(width=3, color=색깔[상태]), showscale=False,
+                                hoverinfo="skip", name=f"{상태}의 0.5 경계선"))
+    if not (min(확률격자) <= 0.5 <= max(확률격자)):
+        밖으로나간것.append((상태, max(확률격자)))
+
+점표 = pd.DataFrame({
+    "가로": 채점입력[가로].to_numpy(), "세로": 채점입력[세로].to_numpy(),
+    "실제": pd.Series(실제).map({1: "뇌졸중 있음", 0: "뇌졸중 없음"}).to_numpy(),
+})
+for 이름, 색 in (("뇌졸중 없음", "#94a3b8"), ("뇌졸중 있음", "#7f1d1d")):
+    한그룹 = 점표[점표["실제"] == 이름]
+    그림2D.add_trace(go.Scatter(x=한그룹["가로"], y=한그룹["세로"], mode="markers", name=이름,
+                                marker=dict(size=6, color=색, opacity=0.5,
+                                            line=dict(width=0.5, color="white"))))
+그림2D.update_layout(title=f"가로축 {우리말(가로)} · 세로축 {우리말(세로)} · 전후 경계선",
+                     xaxis_title=우리말(가로), yaxis_title=우리말(세로), height=560)
+st.plotly_chart(그림2D, width="stretch")
+for 상태, 가장높은확률 in 밖으로나간것:
+    st.info(f"{상태}: 이 그림 안에서 확률이 가장 높은 자리도 {가장높은확률:.2f}입니다. "
+            f"확률이 0.5를 넘는 자리가 없어 0.5 경계선이 그림 안에 없습니다.")
+고정설명 = " · ".join(f"{우리말(열)} {값:g}" for 열, 값 in 고정값.items())
+st.caption(f"파란 선은 고치기 전, 붉은 선은 고친 뒤의 0.5 경계선입니다. 점은 테스트 데이터이고 색은 실제 "
+           f"뇌졸중 여부입니다."
+           + (f" 두 축이 아닌 속성은 테스트 데이터의 중앙값({고정설명})으로 고정해 계산했습니다." if 고정값 else ""))
+
+if len(입력열) >= 3:
+    st.subheader("축 셋으로 돌려 보기")
+    세축 = st.multiselect("3차원 산점도의 축 셋", 입력열, default=입력열[:3], max_selections=3,
+                          format_func=우리말)
+    if len(세축) != 3:
+        st.info("축을 정확히 세 개 골라 주세요.")
+    else:
+        가1, 가2, 가3 = 세축
+        자리 = {열: 번호 for 번호, 열 in enumerate(입력열)}
+        눈금1, 눈금2 = 눈금(가1, 칸수3D), 눈금(가2, 칸수3D)
+        낮은끝, 높은끝 = float(채점입력[가3].min()), float(채점입력[가3].max())
+        그림3D = go.Figure()
+        없는평면 = []
+        for 상태 in (전이름, 후이름):
+            크기맞추기, 확률모델, _ = 모델[상태]
+            계수 = 확률모델.coef_[0].tolist()
+            절편 = float(확률모델.intercept_[0])
+            평균, 폭 = 크기맞추기.mean_.tolist(), 크기맞추기.scale_.tolist()
+
+            def 크기맞춘값(열, 값, 계수=계수, 평균=평균, 폭=폭):
+                i = 자리[열]
+                return 계수[i] * (값 - 평균[i]) / 폭[i]
+
+            세로3 = 자리[가3]
+            평면 = None
+            if 계수[세로3] != 0:
+                남은값 = sum(크기맞춘값(열, float(채점입력[열].median()))
+                             for 열 in 입력열 if 열 not in 세축)
+                평면 = []
+                for 값2 in 눈금2:
+                    한줄 = []
+                    for 값1 in 눈금1:
+                        합 = 절편 + 남은값 + 크기맞춘값(가1, 값1) + 크기맞춘값(가2, 값2)
+                        해 = 평균[세로3] - 폭[세로3] * 합 / 계수[세로3]
+                        한줄.append(해 if 낮은끝 <= 해 <= 높은끝 else None)
+                    평면.append(한줄)
+                if all(값 is None for 한줄 in 평면 for 값 in 한줄):
+                    평면 = None
+            if 평면 is None:
+                없는평면.append(상태)
+            else:
+                그림3D.add_trace(go.Surface(x=눈금1, y=눈금2, z=평면, showscale=False, opacity=0.45,
+                                            colorscale=[[0, 색깔[상태]], [1, 색깔[상태]]],
+                                            hoverinfo="skip", name=f"{상태}의 0.5 평면"))
+        점표3 = pd.DataFrame({
+            "축1": 채점입력[가1].to_numpy(), "축2": 채점입력[가2].to_numpy(),
+            "축3": 채점입력[가3].to_numpy(),
+            "실제": pd.Series(실제).map({1: "뇌졸중 있음", 0: "뇌졸중 없음"}).to_numpy(),
+        })
+        for 이름, 색 in (("뇌졸중 없음", "#94a3b8"), ("뇌졸중 있음", "#7f1d1d")):
+            한그룹 = 점표3[점표3["실제"] == 이름]
+            그림3D.add_trace(go.Scatter3d(x=한그룹["축1"], y=한그룹["축2"], z=한그룹["축3"],
+                                          mode="markers", name=이름,
+                                          marker=dict(size=3, color=색, opacity=0.6)))
+        그림3D.update_layout(height=620, scene=dict(xaxis_title=우리말(가1), yaxis_title=우리말(가2),
+                                                    zaxis_title=우리말(가3)))
+        st.plotly_chart(그림3D, width="stretch")
+        for 상태 in 없는평면:
+            st.info(f"{상태}: 확률 0.5 평면이 이 그림 안에 없습니다. 그림 안의 어느 자리에서도 확률이 0.5에 "
+                    f"닿지 않기 때문입니다.")
+        st.caption("마우스로 끌면 돌려 볼 수 있습니다. 파란 면은 고치기 전, 붉은 면은 고친 뒤의 0.5 평면입니다."
+                   + (" 축 셋이 아닌 속성은 테스트 데이터의 중앙값으로 고정해 계산했습니다." if len(입력열) > 3 else ""))
+
+상태이름 = 후이름
+st.subheader(f"{상태이름} · {병기('확률로 답하는 모델')}이 놓친 환자")
+예측값 = 예측[상태이름]["확률로 답하는 모델"]
+채점명단 = df[테스트용].copy()
+채점명단["고혈압"] = 채점명단["hypertension"].map({1: "있음", 0: "없음"})
+채점명단["심장병"] = 채점명단["heart_disease"].map({1: "있음", 0: "없음"})
+놓친환자 = 채점명단[(실제 == 1) & (예측값 == 0)].sort_values("age")
+놓친환자 = 놓친환자[["id", "age", "고혈압", "심장병"]].rename(columns={"id": "번호", "age": "나이"})
+st.markdown(f"**모두 {len(놓친환자):,}명**")
+st.dataframe(놓친환자.head(20), width="stretch", hide_index=True)
+st.caption("나이가 적은 순서로 앞 스무 줄까지만 보여 줍니다. 고혈압 칸과 심장병 칸을 함께 읽어 보세요.")
+
+st.divider()
+st.subheader("🏆 챌린지 — 지표를 하나 골라 가장 높여 보기")
+목표이름 = {"정확도": "정확도", "재현율": "재현율", "정밀도": "정밀도", "F1": "F1",
+            "정원": f"정원 {정원}명 안에서 찾아낸 환자"}
+내목표 = st.radio("어떤 지표를 가장 높여 볼까요", list(목표이름), horizontal=True, format_func=목표이름.get)
+결측처리 = st.radio("체질량지수가 비어 있는 사람을 어떻게 할까요", list(빈값이름), horizontal=True,
+                    format_func=빈값이름.get,
+                    help="중앙값으로 채우면 비어 있는 칸을 훈련용 체질량지수의 중앙값으로 채웁니다.")
+df, 테스트용, X, y = 나누기(결측처리)                  # 여기부터는 챌린지에서 고른 빈 값 처리로 채점한다
+if 결측처리 == "지운다":
+    st.caption(f"체질량지수가 비어 있던 {len(원본) - len(df):,}명을 지웠습니다. 그 안에 뇌졸중 환자가 "
+               f"{int(원본['stroke'].sum() - df['stroke'].sum()):,}명 들어 있었습니다. "
+               f"테스트용에 남은 뇌졸중 환자는 {int(y[테스트용].sum())}명입니다.")
+st.info("고른 지표가 가장 높아지는 설정을 찾습니다. 점수가 같으면 먼저 올린 팀이 앞섭니다. "
+        f"마지막 목표는 안내 인원이 상담 정원 {정원}명 이하인 채로 찾아낸 환자를 가장 많이 만드는 것입니다. "
+        "지표를 높일 때 찾아낸 환자는 어떻게 되는지 함께 봅니다. 테스트 데이터로 채점합니다.")
+st.caption("비교에 쓰는 기본 설정은 위쪽 전후 비교와 같습니다. 가중치 그대로 · 질문 3번 · 기준값 0.50. "
+           "챌린지에서는 두 모델 모두 양쪽의 가중치를 같게 맞춰 학습하고, 빈 값을 지운 채 기준값 0.60에서 시작합니다. "
+           "기준값은 두 모델에 모두 적용됩니다. 확률이 기준값 이상이면 뇌졸중이라고 답합니다.")
+조절2, 조절3 = st.columns(2)
+내가중치 = True                                        # 챌린지에서는 늘 가중치를 같게 맞춘다
+내깊이 = 조절2.slider("질문을 몇 번까지 던질까요", 1, 10, 3)
+내기준 = 조절3.slider("확률이 얼마 이상이면 뇌졸중이라고 답할까요", 0.05, 0.95, 0.60, 0.05)
+
+
+def 점수(값, 목표):
+    """목표에 따른 점수. 정원 목표는 정원 안에서 찾아낸 환자 수이고, 정원을 넘기면 점수가 없다."""
+    if 목표 == "정원":
+        return 값["찾아낸 환자"] if 값["안내 인원"] <= 정원 else -1
+    return -1 if 값[목표] is None else 값[목표]
+
+
+def 순서(값, 목표):
+    """두 모델 가운데 화면에 보일 쪽을 고르는 열쇠. 점수가 같으면 찾아낸 환자가 많은 쪽을 보인다."""
+    return (점수(값, 목표), 값["찾아낸 환자"], -값["안내 인원"])
+
+
+def 점수글(값, 목표):
+    if 목표 == "정원":
+        return f"{값['찾아낸 환자']}명"
+    return 소수(값[목표])
+
+
+def 실험학습(가중치, 깊이):
+    """가중치와 질문 횟수를 정해 두 모델을 학습한다."""
+    맞춤 = "balanced" if 가중치 else None
+    크기맞추기 = StandardScaler().fit(X[~테스트용])
+    확률모델 = LogisticRegression(max_iter=2000, class_weight=맞춤).fit(
+        크기맞추기.transform(X[~테스트용]), y[~테스트용])
+    질문모델 = DecisionTreeClassifier(max_depth=깊이, min_samples_leaf=5, random_state=0,
+                                      class_weight=맞춤).fit(X[~테스트용], y[~테스트용])
+    return 크기맞추기, 확률모델, 질문모델
+
+
+def 채점(모델이름, 설정, 자리):
+    """한 설정으로 학습해 그 자리(훈련용 또는 테스트용)의 네 칸과 네 지표를 돌려준다."""
+    가중치, 깊이, 기준 = 설정
+    크기맞추기, 확률모델, 질문모델 = 실험학습(가중치, 깊이)
+    if 모델이름 == "확률로 답하는 모델":
+        확률 = 확률모델.predict_proba(크기맞추기.transform(X[자리]))[:, 1]
+    else:
+        확률 = 질문모델.predict_proba(X[자리])[:, 1]      # 도착한 칸에서 뇌졸중이었던 사람의 비율
+    예측값 = (확률 >= 기준).astype(int)
+    TP, FN, FP, TN = 네칸(y[자리].to_numpy(), 예측값)
+    return (TP, FN, FP, TN) + 지표(TP, FN, FP, TN)
+
+
+기본설정 = (False, 3, 0.50)
+내설정 = (내가중치, 내깊이, 내기준)
+
+st.markdown("**지금 내 설정의 성적** · 테스트 데이터 기준")
+성적칸 = st.columns(4)
+내기록 = {}
+for 자리번호, 모델이름 in enumerate(("확률로 답하는 모델", "질문으로 답하는 모델")):
+    TP, FN, FP, TN, 정확도, 정밀도, 재현율, F1 = 채점(모델이름, 내설정, 테스트용)
+    내기록[모델이름] = {"찾아낸 환자": TP, "안내 인원": TP + FP,
+                        "정확도": 정확도, "재현율": 재현율, "정밀도": 정밀도, "F1": F1}
+좋은모델, 값 = max(내기록.items(), key=lambda x: 순서(x[1], 내목표))
+성적칸[0].metric(목표이름[내목표] if 내목표 != "정원" else "정원 안에서 찾아낸 환자",
+                 점수글(값, 내목표) if 내목표 != "정원" or 값["안내 인원"] <= 정원 else "정원 초과")
+성적칸[1].metric("찾아낸 환자", f"{값['찾아낸 환자']}명", f"전체 대상자 {int(y[테스트용].sum())}명")
+성적칸[2].metric("안내 인원", f"{값['안내 인원']:,}명", f"정원 {정원}명")
+성적칸[3].metric("정원 안에 드는가", "예" if 값["안내 인원"] <= 정원 else "아니요")
+st.caption(f"네 지표 · 정확도 {소수(값['정확도'])} · 재현율 {소수(값['재현율'])} · "
+           f"정밀도 {소수(값['정밀도'])} · F1 {소수(값['F1'])}")
+st.caption(f"두 모델 가운데 고른 목표에서 앞서는 쪽인 {병기(좋은모델)}의 성적입니다.")
+
+기록파일 = Path("내_기록") / "최고_기록.json"      # 새로고침해도 남도록 목표마다 최고 기록을 파일에 적어 둔다
+if "최고기록" not in st.session_state:
+    try:
+        읽은것 = json.loads(기록파일.read_text(encoding="utf-8"))
+        # 목표를 나누기 전(2026-09-23 이전)의 파일은 기록 하나였다. 정원 목표의 기록으로 옮긴다
+        st.session_state["최고기록"] = {"정원": 읽은것} if "찾아낸 환자" in 읽은것 else 읽은것
+    except (FileNotFoundError, ValueError, TypeError):
+        st.session_state["최고기록"] = {}
+최고들 = st.session_state["최고기록"]
+if 내목표 != "정원" or 값["안내 인원"] <= 정원:
+    이전 = 최고들.get(내목표)
+    if 이전 is None or 점수(값, 내목표) > 점수(이전, 내목표):      # 같은 점수면 먼저 낸 기록을 남긴다
+        최고들[내목표] = {"찾아낸 환자": 값["찾아낸 환자"], "안내 인원": 값["안내 인원"],
+                          "모델": 좋은모델, "가중치": 내가중치, "깊이": 내깊이,
+                          "기준값": 내기준, "입력": [우리말(열) for 열 in 입력열],
+                          "빈 값": 결측처리, "정확도": 값["정확도"], "재현율": 값["재현율"],
+                          "정밀도": 값["정밀도"], "F1": 값["F1"]}
+        기록파일.parent.mkdir(exist_ok=True)
+        기록파일.write_text(json.dumps(최고들, ensure_ascii=False), encoding="utf-8")
+최고 = 최고들.get(내목표)
+if 최고:
+    st.success(f"「{목표이름[내목표]}」 최고 기록 · {점수글(최고, 내목표)} · 찾아낸 환자 {최고['찾아낸 환자']}명 "
+               f"(안내 {최고['안내 인원']:,}명) · {병기(최고['모델'])} · 입력 {' · '.join(최고['입력'])} · "
+               f"빈 값 {빈값이름[최고['빈 값']]} · 질문 {최고['깊이']}번 · 기준값 {최고['기준값']:.2f}")
+    st.caption("목표마다 최고 기록이 따로 남고, 모델 소개 페이지에 모아서 표시됩니다. 새로고침해도 이 브라우저에 남습니다.")
+else:
+    st.warning("아직 정원 안에 든 기록이 없습니다. 안내 인원을 500명 이하로 만들어 보세요.")
+
+st.markdown("**기본 설정과 내 설정 · 훈련용과 테스트용**")
+설정 = {"기본 설정": 기본설정, "내 설정": 내설정}
+쓰임 = {"훈련용": ~테스트용, "테스트용": 테스트용}
+for 모델이름 in ("확률로 답하는 모델", "질문으로 답하는 모델"):
+    st.markdown(f"**{병기(모델이름)}**")
+    칸 = {}
+    for 설정이름, 그설정 in 설정.items():
+        for 쓰임이름, 자리 in 쓰임.items():
+            TP, FN, FP, TN, 정확도, 정밀도, 재현율, F1 = 채점(모델이름, 그설정, 자리)
+            칸[f"{설정이름} · {쓰임이름}"] = [소수(정확도), 소수(재현율), 소수(정밀도), 소수(F1),
+                                              f"{TP}명", f"{FP}명"]
+    실험표 = pd.DataFrame(칸, index=["정확도", "재현율", "정밀도", "F1",
+                                     "찾아낸 환자 (TP)", "헛짚은 사람 (FP)"])
+    실험표.index.name = ""
+    st.table(실험표)
+
+달라진것 = []
+if 내가중치:
+    달라진것.append("양쪽의 가중치를 같게 맞췄습니다")
+if 내깊이 != 3:
+    달라진것.append(f"질문 횟수를 3번에서 {내깊이}번으로 바꿨습니다")
+if 내기준 != 0.50:
+    달라진것.append(f"기준값을 0.50에서 {내기준:.2f}로 바꿨습니다")
+if 입력열 != 기본열:
+    달라진것.append("입력 속성을 바꿨습니다")
+if 결측처리 != "그대로 둔다":
+    달라진것.append("체질량지수가 비어 있는 사람을 지웠습니다")
+st.caption("기본 설정에서 달라진 것: "
+           + (" · ".join(달라진것) if 달라진것 else "없습니다. 조절 자리를 움직여 보세요."))
+st.caption("훈련용은 학습에 사용한 사람들이고 테스트용은 사용하지 않은 사람들입니다. "
+           "질문 횟수를 늘리면 두 점수가 어떻게 벌어지는지 보세요. "
+           "훈련용에서만 잘 맞히는 모델은 처음 보는 사람에게는 쓸 수 없습니다.")
+
+
+st.divider()
+st.subheader("📤 기록 올리기")
+st.caption("이름과 소속은 받지 않습니다. 팀명만 적습니다. "
+           "올릴 만한 기록이 나왔을 때 버튼을 누릅니다. 같은 설정은 한 번만 올라갑니다.")
+저장주소 = 설정["url"] + "/rest/v1/" + 설정["table"]
+공개키 = 설정["key"]
+행사 = 설정["event"]
+순위판주소 = "../"                                      # 실습실(app/)의 한 단계 위가 순위판이다
+
+칸2, 칸3 = st.columns([2, 2])
+내팀명 = 칸2.text_input("팀명", max_chars=12, placeholder="열두 글자까지")
+보낼까 = 칸3.button("이 기록 올리기", width="stretch")
+
+def 올리기(보낼것):
+    """기록을 보내고, 방금 올린 것까지 넣어 순위를 다시 센다. 브라우저에서만 동작한다."""
+    import json
+
+    import js                                           # 브라우저에서 실행할 때만 있다
+    보내기 = js.XMLHttpRequest.new()
+    보내기.open("POST", 저장주소, False)                 # False는 다 보낼 때까지 기다린다는 뜻
+    보내기.setRequestHeader("apikey", 공개키)
+    보내기.setRequestHeader("Content-Type", "application/json")
+    보내기.setRequestHeader("Prefer", "return=minimal")
+    보내기.send(json.dumps(보낼것, ensure_ascii=False))
+    if 보내기.status >= 300:
+        raise RuntimeError(f"보내기 실패 {보내기.status}")
+
+    읽기 = js.XMLHttpRequest.new()
+    읽기.open("GET", 저장주소 + "?select=nickname,goal,found,sent,within_quota,accuracy,recall,precision,f1,created_at"
+             + "&event_id=eq." + quote(행사), False)
+    읽기.setRequestHeader("apikey", 공개키)
+    읽기.send()
+    return json.loads(읽기.responseText) if 읽기.status < 300 else []
+
+
+def 순위세기(줄들, 팀명, 목표):
+    """같은 목표로 올린 기록만 가지고 팀별 최고를 구해 우리 자리를 센다.
+    점수가 높을수록 앞서고, 같으면 그 점수를 먼저 올린 팀이 앞선다. 정원 목표는 정원 안에 든 기록만 센다."""
+    최고 = {}
+    for r in sorted(줄들, key=lambda r: r.get("created_at") or ""):
+        if (r.get("goal") or "정원") != 목표 or (목표 == "정원" and not r.get("within_quota")):
+            continue
+        그값 = {"찾아낸 환자": int(r["found"]), "안내 인원": int(r["sent"]), "정확도": r.get("accuracy"),
+                "재현율": r.get("recall"), "정밀도": r.get("precision"), "F1": r.get("f1"),
+                "시각": r.get("created_at") or ""}
+        열쇠 = r["nickname"]
+        if 열쇠 not in 최고 or 점수(그값, 목표) > 점수(최고[열쇠], 목표):
+            최고[열쇠] = 그값
+    내것 = 최고.get(팀명)
+    if 내것 is None:
+        return None
+
+    def 앞선다(v):
+        return (점수(v, 목표), v is not 내것 and v["시각"] < 내것["시각"]) > (점수(내것, 목표), False)
+
+    return {
+        "내것": 내것,
+        "전체인원": len(최고), "전체등수": sum(1 for v in 최고.values() if 앞선다(v)) + 1,
+    }
+
+
+지문 = (내팀명.strip(), 내목표, 결측처리, tuple(입력열), 내깊이, 내기준)
+if "올린것" not in st.session_state:
+    st.session_state["올린것"] = set()
+
+if 보낼까 and not 내팀명.strip():
+    st.warning("팀명을 적어 주세요.")
+elif 보낼까 and 지문 in st.session_state["올린것"]:
+    st.info("이미 올린 설정입니다. 설정을 바꾼 뒤에 다시 올려 주세요.")
+elif 보낼까:
+    보낼것 = {
+        "event_id": 행사, "nickname": 내팀명.strip(),
+        "model": 정식이름.get(좋은모델, 좋은모델), "inputs": " · ".join(우리말(열) for 열 in 입력열),
+        "missing": 결측처리, "weighted": bool(내가중치),
+        "depth": int(내깊이), "threshold": float(내기준),
+        "sent": int(값["안내 인원"]), "found": int(값["찾아낸 환자"]),
+        "accuracy": round(float(값["정확도"]), 4),
+        "recall": None if 값["재현율"] is None else round(float(값["재현율"]), 4),
+        "precision": None if 값["정밀도"] is None else round(float(값["정밀도"]), 4),
+        "f1": None if 값["F1"] is None else round(float(값["F1"]), 4),
+        "within_quota": bool(값["안내 인원"] <= 정원), "goal": 내목표,
+    }
+    try:
+        줄들 = 올리기(보낼것)
+    except ModuleNotFoundError:
+        st.info("이 화면에서는 기록을 올릴 수 없습니다. 브라우저용 실습실 주소에서 올려 주세요.")
+    except Exception as 오류:
+        st.error(f"올리지 못했습니다. 잠시 뒤 다시 눌러 주세요. ({type(오류).__name__})")
+    else:
+        st.session_state["올린것"].add(지문)
+        자리 = 순위세기(줄들, 내팀명.strip(), 내목표)
+        if 자리 is None:
+            st.warning(f"안내 인원이 {보낼것['sent']:,}명이라 정원 {정원}명을 넘겼습니다. "
+                       f"기록은 남았지만 순위에는 들어가지 않습니다. 안내 인원을 줄여 보세요.")
+        else:
+            위쪽 = 자리["전체등수"] / 자리["전체인원"] * 100
+            내것 = 자리["내것"]
+            st.success(f"### {목표이름[내목표]} {점수글(내것, 내목표)} · 찾아낸 환자 {내것['찾아낸 환자']}명 · "
+                       f"안내 {내것['안내 인원']:,}명\n"
+                       f"같은 목표 {자리['전체인원']}팀 가운데 **{자리['전체등수']}위** · 상위 {위쪽:.1f}%")
+            if 자리["전체등수"] == 1:
+                st.info("지금 1위입니다.")
+            if 내목표 == "정원" and 내것["찾아낸 환자"] > 67:
+                st.info("기본 설정의 67명을 넘겼습니다.")
+                st.balloons()
+
+st.markdown(f"[📊 순위판 열기]({순위판주소})")
