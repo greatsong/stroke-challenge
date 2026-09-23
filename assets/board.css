@@ -77,6 +77,9 @@ table.board tr.fresh td { animation: fresh 1.6s ease-out 1; }
 table.board td.rank { font-weight: 800; color: var(--muted); width: 2.4rem; text-align: center; font-size: 1.05rem; }
 table.board td.team { font-weight: 700; line-height: 1.45; min-width: 6rem; }
 table.board td.team b { white-space: nowrap; }
+/* 진행자 화면: 성명 칸 아래 소속·이메일, 설정은 줄을 꺾지 않고 표가 가로로 넘어간다 */
+table.board td.person, table.board td.setting, table.board td.setting .detail, table.board td.person .detail { white-space: nowrap; max-width: none; }
+table.board td.person { font-weight: 700; }
 table.board .detail { display: block; font-size: 0.76rem; font-weight: 400; color: var(--text-soft); overflow-wrap: anywhere; }
 .bar { position: relative; height: 1.5rem; background: var(--border-soft); border-radius: 999px; overflow: hidden; min-width: 90px; }
 .bar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 999px; opacity: 0.85; }

@@ -215,11 +215,11 @@
       (fin ? '<th class="num hide">공개 F2</th>' : '') +
       '<th class="num hide">F1</th><th class="num hide">정밀도</th><th class="num hide">재현율</th>' +
       '<th class="num">안내</th><th class="num">찾은 환자</th><th class="num hide">제출</th>' +
-      (H ? '<th>소속</th><th>성명</th><th>이메일</th><th>설정</th>' : '<th class="hide">모델</th>') +
+      (H ? '<th>성명 · 소속 · 이메일</th><th>설정</th>' : '<th class="hide">모델</th>') +
       '<th class="num hide">최근 제출</th></tr>';
     $('thead').innerHTML = head;
 
-    var cols = (fin ? 12 : 11) + (H ? 3 : 0);
+    var cols = (fin ? 12 : 11) + (H ? 2 : 0);
     var body = list.map(function (t) {
       var b = t.best, m = b ? (fin ? b.pri : b.pub) : null, rank = rankOf(t), s = score(t);
       var medal = rank && rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : null;
@@ -247,9 +247,10 @@
         '<td class="num">' + int(sent) + '</td>' +
         '<td class="num">' + int(found) + '</td>' +
         '<td class="num hide">' + t.subs + '</td>' +
-        (H ? '<td>' + esc(p.org || '') + '</td><td>' + esc(p.name || '') + '</td><td>' + esc(p.email || '') + '</td>' +
-             '<td><span class="detail" style="color:var(--text)">' + esc(b ? modelName(b) : '') + '</span><span class="detail">' +
-             esc(b ? settingText(b.setting) : '') + (b && b.n_called != null ? ' · 전체 ' + int(b.n_called) + '명에게 전화' : '') + '</span></td>'
+        (H ? '<td class="person">' + esc(p.name || '') + '<span class="detail">' + esc([p.org, p.email].filter(Boolean).join(' · ')) + '</span></td>' +
+             '<td class="setting"><span class="detail" style="color:var(--text)">' + esc(b ? modelName(b) : '') +
+             (b && b.n_called != null ? ' · 전체 ' + int(b.n_called) + '명에게 전화' : '') + '</span><span class="detail">' +
+             esc(b ? settingText(b.setting) : '') + '</span></td>'
            : '<td class="hide"><span class="detail" style="color:var(--text)">' + esc(b ? modelName(b) : '') + '</span></td>') +
         '<td class="num hide">' + clock(t.last) + '</td></tr>';
     }).join('');
@@ -409,8 +410,10 @@
   }
   function buildCsv() {
     var rows = [['팀명', '소속', '성명', '이메일', '공개 순위', '공개 F2', '최종 순위', '최종 F2', '안내 인원', '찾은 환자', '제출 횟수']];
+    var byFinal = !!(state.info && state.info.revealed);   // 최종 점수를 공개했으면 최종 순위 순, 아니면 공개 순위 순
     state.teams.slice().sort(function (a, b) {
-      return (a.pubRank || 1e9) - (b.pubRank || 1e9) || a.first.localeCompare(b.first);
+      var ra = byFinal ? a.priRank : a.pubRank, rb = byFinal ? b.priRank : b.pubRank;
+      return (ra || 1e9) - (rb || 1e9) || a.first.localeCompare(b.first);
     }).forEach(function (t) {
       var b = t.best, p = t.person || {};
       rows.push([t.name, p.org, p.name, p.email, t.pubRank, b ? fmt(b.pub.F2) : '', t.priRank, b && b.pri.F2 != null ? fmt(b.pri.F2) : '',
