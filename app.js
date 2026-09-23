@@ -12,7 +12,6 @@
   var URL_ = (C.SUPABASE_URL || '').replace(/\/$/, ''), KEY = C.SUPABASE_KEY || '', EVENT = C.EVENT || '';
   var HOST = window.CHALLENGE_MODE === 'host';
   var PASS_KEY = 'stroke_challenge_admin_pass';
-  var AVATARS = ['🩺', '🧪', '📊', '🔬', '💉', '🧬', '🫀', '🧠', '🩻', '💊', '📋', '🦠'];
 
   var $ = function (id) { return document.getElementById(id); };
   var state = {
@@ -30,11 +29,6 @@
   function int(v) { return v == null ? '—' : Number(v).toLocaleString('ko-KR'); }
   function setText(id, t) { var el = $(id); if (el) el.textContent = t; }
   function clock(t) { return new Date(t).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
-  function avatar(name) {
-    var h = 0, s = String(name);
-    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    return AVATARS[h % AVATARS.length];
-  }
   function store(k, v) {
     try { if (v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) { /* 저장소를 못 써도 화면은 동작한다 */ }
   }
@@ -170,14 +164,13 @@
   function drawPodium(list) {
     var medals = ['🥇', '🥈', '🥉'], leader = list[0] && list[0].best ? list[0].name : null;
     var html = [0, 1, 2].map(function (i) {
-      var t = list[i], cls = 'pod p' + (i + 1);
+      var t = list[i], cls = 'pod p' + (i + 1) + (i === 0 ? ' first' : '');
       if (!t || !t.best || score(t) == null) {
         return '<div class="' + cls + ' empty"><div class="medal">' + medals[i] + '</div><div class="who">비어 있습니다</div><div class="big">—</div></div>';
       }
       var b = t.best, fin = isFinal(), sent = fin ? b.sent_private : b.sent, found = fin ? b.found_private : b.found;
       return '<div class="' + cls + '" data-team="' + esc(t.name) + '">' +
         '<div class="medal">' + medals[i] + '</div>' +
-        '<div class="ava" aria-hidden="true">' + avatar(t.name) + '</div>' +
         '<div class="who">' + esc(t.name) + '</div>' +
         '<div class="big">' + fmt(score(t)) + '<span> ' + (fin ? '최종 F2' : 'F2') + '</span></div>' +
         '<div class="sub">안내 ' + int(sent) + '명 · 찾은 환자 ' + int(found) + '명' + (fin && t.pubRank ? ' · 공개 ' + t.pubRank + '위' : '') + '</div>' +
@@ -245,7 +238,7 @@
       return '<tr class="' + (fresh[t.name] ? 'fresh' : '') + '">' +
         '<td class="rank">' + (rank ? (medal || rank) : '—') + '</td>' +
         (fin ? '<td class="num">' + move + '</td>' : '') +
-        '<td class="team"><span class="ava" aria-hidden="true">' + avatar(t.name) + '</span><b>' + esc(t.name) + '</b>' + src + reason + '</td>' +
+        '<td class="team"><b>' + esc(t.name) + '</b>' + src + reason + '</td>' +
         '<td><div class="bar"><i style="width:' + width + '%"></i><b>' + fmt(s) + '</b></div></td>' +
         (fin ? '<td class="num hide">' + fmt(b && b.pub.F2) + '</td>' : '') +
         '<td class="num hide">' + fmt(m && m.F1) + '</td>' +
@@ -255,9 +248,9 @@
         '<td class="num">' + int(found) + '</td>' +
         '<td class="num hide">' + t.subs + '</td>' +
         (H ? '<td>' + esc(p.org || '') + '</td><td>' + esc(p.name || '') + '</td><td>' + esc(p.email || '') + '</td>' +
-             '<td><span class="detail" style="color:var(--ink)">' + esc(b ? modelName(b) : '') + '</span><span class="detail">' +
+             '<td><span class="detail" style="color:var(--text)">' + esc(b ? modelName(b) : '') + '</span><span class="detail">' +
              esc(b ? settingText(b.setting) : '') + (b && b.n_called != null ? ' · 전체 ' + int(b.n_called) + '명에게 전화' : '') + '</span></td>'
-           : '<td class="hide"><span class="detail" style="color:var(--ink)">' + esc(b ? modelName(b) : '') + '</span></td>') +
+           : '<td class="hide"><span class="detail" style="color:var(--text)">' + esc(b ? modelName(b) : '') + '</span></td>') +
         '<td class="num hide">' + clock(t.last) + '</td></tr>';
     }).join('');
     $('tbody').innerHTML = body || '<tr><td colspan="' + cols + '" class="quiet" style="text-align:center;padding:1.4rem">아직 올라온 목록이 없습니다. 실습실에서 첫 목록을 제출하면 여기에 표시됩니다.</td></tr>';
@@ -293,16 +286,16 @@
     if (run.length && lastAt > run[run.length - 1].created_at) run.push({ created_at: lastAt, pub: { F2: best } });   // 선을 마지막 제출 시각까지 잇는다
     var data = [
       { x: run.map(function (r) { return localTime(r.created_at); }), y: run.map(function (r) { return r.pub.F2; }),
-        mode: 'lines', line: { shape: 'hv', color: css('--warm'), width: 2 }, name: '그때까지의 최고', hoverinfo: 'skip' },
-      trace(pts.filter(function (r) { return r.nickname !== leader; }), '제출한 목록', css('--teal-2'), 9),
-      trace(pts.filter(function (r) { return r.nickname === leader; }), fin ? '최종 1등 팀' : '지금 1등 팀', css('--warm'), 12, 'diamond')
+        mode: 'lines', line: { shape: 'hv', color: css('--green'), width: 2, dash: 'dot' }, name: '그때까지의 최고', hoverinfo: 'skip' },
+      trace(pts.filter(function (r) { return r.nickname !== leader; }), '제출한 목록', css('--muted'), 9),
+      trace(pts.filter(function (r) { return r.nickname === leader; }), fin ? '최종 1등 팀' : '지금 1등 팀', css('--accent'), 12, 'diamond')
     ];
     Plotly.react('plot', data, {
       paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-      font: { family: 'Pretendard Variable, Apple SD Gothic Neo, sans-serif', color: css('--muted'), size: 12 },
+      font: { family: css('--font'), color: css('--text-soft'), size: 12 },
       margin: { l: 48, r: 12, t: 8, b: 40 },
-      xaxis: { title: { text: '제출 시각' }, gridcolor: css('--line'), tickformat: '%H:%M', hoverformat: '%m월 %d일 %H:%M' },
-      yaxis: { title: { text: '공개 F2' }, rangemode: 'tozero', gridcolor: css('--line'), zeroline: false },
+      xaxis: { title: { text: '제출 시각' }, gridcolor: css('--border-soft'), tickformat: '%H:%M', hoverformat: '%m월 %d일 %H:%M' },
+      yaxis: { title: { text: '공개 F2' }, rangemode: 'tozero', gridcolor: css('--border-soft'), zeroline: false },
       legend: { orientation: 'h', y: 1.12, x: 0 },
       showlegend: true
     }, { displayModeBar: false, responsive: true });
