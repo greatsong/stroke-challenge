@@ -22,19 +22,20 @@ st.write("데이터를 손보고 다시 학습해 전후를 나란히 놓고 본
 
 
 def 설정_읽기():
-    """config.js의 CHALLENGE_CONFIG를 읽는다. 브라우저 밖(로컬 streamlit)에서는 기본값을 쓴다."""
+    """config.js의 CHALLENGE_CONFIG를 읽는다. 실습실 index.html이 config.json 파일로 건네준다.
+    브라우저 밖(로컬 streamlit)에서는 파일이 없으므로 기본값을 쓴다."""
     기본 = {"url": "", "key": "", "table": "stroke_challenge_log", "event": "", "quota": 500, "form": ""}
     try:
-        import js                                       # 브라우저에서 실행할 때만 있다
-        c = js.window.CHALLENGE_CONFIG
-        return {"url": str(c.SUPABASE_URL), "key": str(c.SUPABASE_KEY), "table": str(c.TABLE),
-                "event": str(c.EVENT), "quota": int(c.QUOTA), "form": str(c.FORM_URL or "")}
-    except Exception:
+        c = json.loads(Path("config.json").read_text(encoding="utf-8"))
+        return {"url": str(c.get("SUPABASE_URL", "")), "key": str(c.get("SUPABASE_KEY", "")),
+                "table": str(c.get("TABLE") or 기본["table"]), "event": str(c.get("EVENT", "")),
+                "quota": int(c.get("QUOTA") or 500), "form": str(c.get("FORM_URL") or "")}
+    except (FileNotFoundError, ValueError):
         return 기본
 
 
-설정 = 설정_읽기()
-정원 = 설정["quota"]
+챌린지설정 = 설정_읽기()
+정원 = 챌린지설정["quota"]
 전이름, 후이름 = "고치기 전 (가중치 그대로)", "고친 뒤 (가중치를 같게)"
 칸수 = 60
 칸수3D = 26
@@ -422,9 +423,9 @@ st.divider()
 st.subheader("📤 기록 올리기")
 st.caption("이름과 소속은 받지 않습니다. 팀명만 적습니다. "
            "올릴 만한 기록이 나왔을 때 버튼을 누릅니다. 같은 설정은 한 번만 올라갑니다.")
-저장주소 = 설정["url"] + "/rest/v1/" + 설정["table"]
-공개키 = 설정["key"]
-행사 = 설정["event"]
+저장주소 = 챌린지설정["url"] + "/rest/v1/" + 챌린지설정["table"]
+공개키 = 챌린지설정["key"]
+행사 = 챌린지설정["event"]
 순위판주소 = "../"                                      # 실습실(app/)의 한 단계 위가 순위판이다
 
 칸2, 칸3 = st.columns([2, 2])

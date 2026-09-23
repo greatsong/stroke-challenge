@@ -22,9 +22,8 @@ def 제출주소_읽기():
     """config.js의 FORM_URL. 구글 폼의 미리 채운 주소이며 __RECORD__ · __SETTING__ · __CHANGED__ · __REASON__
     자리에 내 기록이 들어간다. 비어 있으면 제출 버튼이 나오지 않는다."""
     try:
-        import js                                       # 브라우저에서 실행할 때만 있다
-        return str(js.window.CHALLENGE_CONFIG.FORM_URL or "")
-    except Exception:
+        return str(json.loads(Path("config.json").read_text(encoding="utf-8")).get("FORM_URL") or "")
+    except (FileNotFoundError, ValueError):
         return ""
 
 
