@@ -9,11 +9,13 @@
 -- 구조
 --   stroke_challenge_labels  test의 정답과 공개/최종 구분. 아무도 직접 읽지 못한다(함수만 읽는다).
 --   stroke_challenge_event   행사 이름·마감·최종 공개 여부·제출 상한·관리자 암호.
---   stroke_challenge_team    인턴 등록(팀명·소속·성명·이메일·팀 열쇠). 넣을 수는 있지만 읽지 못한다.
+--   stroke_challenge_team    인턴 등록(팀명·소속·성명·이메일·제출 비밀번호 해시). 넣을 수는 있지만 읽지 못한다.
 --   stroke_challenge_log     제출 기록. 공개 점수와 최종 점수를 함께 저장하되 최종은 공개 전까지 숨긴다.
---   함수                       register(등록, 팀 열쇠를 돌려준다), submit(제출·채점, 팀명과 열쇠로 확인),
+--   함수                       register(등록, 참가자가 정한 제출 비밀번호를 해시로 저장), submit(제출·채점, 팀명과 비밀번호로 확인),
 --                              board(순위판), event_info(행사 정보), roster·admin_board·admin_info·set_event(관리자)
--- 관리자 암호는 crypt(암호, gen_salt('bf'))로 저장하고 crypt(넣은 암호, 저장값)으로 비교한다.
+-- 관리자 암호와 제출 비밀번호는 crypt(암호, gen_salt('bf'))로 저장하고 crypt(넣은 암호, 저장값)으로 비교한다.
+-- 옛 판(팀 열쇠 방식)이 깔린 데이터베이스에 다시 실행해도 된다. 열을 더하고 함수를 새 판으로 바꾼다.
+-- 옛 판에서 등록한 팀은 비밀번호가 없어 제출할 수 없으므로, 그 팀을 지우고 다시 등록받는다.
 -- 공개 키(anon)는 표를 직접 읽거나 쓰지 못하고 함수만 부른다.
 -- ============================================================
 
@@ -48,12 +50,14 @@ create table if not exists public.stroke_challenge_team (
   name        text not null check (char_length(name) between 1 and 30),
   email       text not null check (email ~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'),
   consent     boolean not null check (consent = true),
-  token       uuid not null default gen_random_uuid(),   -- 팀 열쇠. 제출할 때 팀명과 함께 보낸다
+  token       uuid not null default gen_random_uuid(),   -- 옛 판의 팀 열쇠. 지금은 쓰지 않는다(옛 표와 맞추려고 남긴다)
+  pass_hash   text,                                      -- 제출 비밀번호의 crypt 해시(bf). 평문은 저장하지 않는다
   constraint stroke_challenge_team_nick_uq  unique (event_id, nickname),
   constraint stroke_challenge_team_email_uq unique (event_id, email)
 );
--- 전에 만든 표에도 열쇠와 이메일 중복 금지를 더한다(처음 만드는 경우에는 아무 일도 하지 않는다)
+-- 전에 만든 표에도 열쇠·비밀번호 해시 열과 이메일 중복 금지를 더한다(처음 만드는 경우에는 아무 일도 하지 않는다)
 alter table public.stroke_challenge_team add column if not exists token uuid not null default gen_random_uuid();
+alter table public.stroke_challenge_team add column if not exists pass_hash text;
 do $$ begin
   if not exists (select 1 from pg_constraint where conname = 'stroke_challenge_team_email_uq') then
     alter table public.stroke_challenge_team add constraint stroke_challenge_team_email_uq unique (event_id, email);
@@ -93,19 +97,20 @@ language sql security definer set search_path = public, extensions stable as $$
   from stroke_challenge_event e where e.event_id = event
 $$;
 
--- 인턴 등록(누구나 넣기만) --------------------------------------------
-create or replace function public.stroke_challenge_register(event text, nick text, org_ text, name_ text, email_ text, consent_ boolean)
+-- 인턴 등록(누구나 넣기만). 제출 비밀번호는 참가자가 정하고 해시로만 저장한다 ------------------
+drop function if exists public.stroke_challenge_register(text, text, text, text, text, boolean);   -- 팀 열쇠를 돌려주던 옛 판
+create or replace function public.stroke_challenge_register(event text, nick text, org_ text, name_ text, email_ text, consent_ boolean, pass_ text)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
-declare tok uuid; cname text;
+declare cname text;
 begin
   if not exists (select 1 from stroke_challenge_event e where e.event_id = event) then
     raise exception 'no_event';
   end if;
   if consent_ is not true then raise exception 'consent'; end if;
-  insert into stroke_challenge_team (event_id, nickname, org, name, email, consent)
-  values (event, btrim(nick), btrim(org_), btrim(name_), lower(btrim(email_)), true)
-  returning token into tok;
-  return jsonb_build_object('ok', true, 'nickname', btrim(nick), 'token', tok);
+  if pass_ is null or char_length(pass_) not between 4 and 40 then raise exception 'bad_pass_format'; end if;
+  insert into stroke_challenge_team (event_id, nickname, org, name, email, consent, pass_hash)
+  values (event, btrim(nick), btrim(org_), btrim(name_), lower(btrim(email_)), true, crypt(pass_, gen_salt('bf')));
+  return jsonb_build_object('ok', true, 'nickname', btrim(nick));
 exception when unique_violation then
   get stacked diagnostics cname = constraint_name;
   if cname = 'stroke_challenge_team_email_uq' then raise exception 'duplicate_email'; end if;
@@ -113,8 +118,9 @@ exception when unique_violation then
 end $$;
 
 -- 제출과 채점(누구나, 등록한 팀만) -----------------------------------------
-drop function if exists public.stroke_challenge_submit(text, text, integer[], jsonb, text);   -- 열쇠 인자가 없던 옛 판
-create or replace function public.stroke_challenge_submit(event text, nick text, token_ uuid, ids integer[], setting_ jsonb default '{}'::jsonb, source_ text default 'app')
+drop function if exists public.stroke_challenge_submit(text, text, integer[], jsonb, text);         -- 열쇠 인자가 없던 옛 판
+drop function if exists public.stroke_challenge_submit(text, text, uuid, integer[], jsonb, text);   -- 팀 열쇠로 확인하던 옛 판
+create or replace function public.stroke_challenge_submit(event text, nick text, pass_ text, ids integer[], setting_ jsonb default '{}'::jsonb, source_ text default 'app')
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare
   ev stroke_challenge_event%rowtype;
@@ -126,8 +132,9 @@ begin
   if not found then raise exception 'no_event'; end if;
   if ev.revealed then raise exception 'closed'; end if;
   if ev.deadline is not null and now() > ev.deadline then raise exception 'deadline'; end if;
-  if token_ is null or not exists (select 1 from stroke_challenge_team t
-                 where t.event_id = event and t.nickname = nick and t.token = token_) then
+  if pass_ is null or not exists (select 1 from stroke_challenge_team t
+                 where t.event_id = event and t.nickname = nick
+                   and t.pass_hash is not null and t.pass_hash = crypt(pass_, t.pass_hash)) then
     raise exception 'not_registered';
   end if;
   if ids is null or array_length(ids, 1) is null then raise exception 'empty'; end if;
@@ -221,16 +228,16 @@ begin
 end $$;
 
 revoke all on function public.stroke_challenge_event_info(text) from public;
-revoke all on function public.stroke_challenge_register(text, text, text, text, text, boolean) from public;
-revoke all on function public.stroke_challenge_submit(text, text, uuid, integer[], jsonb, text) from public;
+revoke all on function public.stroke_challenge_register(text, text, text, text, text, boolean, text) from public;
+revoke all on function public.stroke_challenge_submit(text, text, text, integer[], jsonb, text) from public;
 revoke all on function public.stroke_challenge_board(text) from public;
 revoke all on function public.stroke_challenge_roster(text, text) from public;
 revoke all on function public.stroke_challenge_admin_board(text, text) from public;
 revoke all on function public.stroke_challenge_admin_info(text, text) from public;
 revoke all on function public.stroke_challenge_set_event(text, text, boolean, timestamptz, boolean) from public;
 grant execute on function public.stroke_challenge_event_info(text) to anon, authenticated;
-grant execute on function public.stroke_challenge_register(text, text, text, text, text, boolean) to anon, authenticated;
-grant execute on function public.stroke_challenge_submit(text, text, uuid, integer[], jsonb, text) to anon, authenticated;
+grant execute on function public.stroke_challenge_register(text, text, text, text, text, boolean, text) to anon, authenticated;
+grant execute on function public.stroke_challenge_submit(text, text, text, integer[], jsonb, text) to anon, authenticated;
 grant execute on function public.stroke_challenge_board(text) to anon, authenticated;
 grant execute on function public.stroke_challenge_roster(text, text) to anon, authenticated;
 grant execute on function public.stroke_challenge_admin_board(text, text) to anon, authenticated;
@@ -242,6 +249,9 @@ revoke all on table public.stroke_challenge_labels from anon, authenticated;
 revoke all on table public.stroke_challenge_event  from anon, authenticated;
 revoke all on table public.stroke_challenge_team   from anon, authenticated;
 revoke all on table public.stroke_challenge_log    from anon, authenticated;
+
+-- PostgREST가 바뀐 함수 목록을 바로 읽게 한다(수파베이스 밖에서는 아무 일도 하지 않는다)
+notify pgrst, 'reload schema';
 
 -- ============================================================
 -- 행사 등록 (값을 바꿔서 실행. 관리자 암호는 길고 짐작하기 어렵게)

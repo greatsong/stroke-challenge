@@ -10,14 +10,13 @@ import pandas as pd
 def 설정_읽기():
     """config.js의 CHALLENGE_CONFIG. 실습실 index.html이 config.json 파일로 건네준다.
     브라우저 밖(로컬 streamlit)에서는 파일이 없으므로 기본값을 쓴다."""
-    기본 = {"url": "", "key": "", "event": "", "data": 기본주소, "form": ""}
+    기본 = {"url": "", "key": "", "event": "", "data": 기본주소}
     try:
         c = json.loads(Path("config.json").read_text(encoding="utf-8"))
     except (FileNotFoundError, ValueError):
         return 기본
     return {"url": str(c.get("SUPABASE_URL") or ""), "key": str(c.get("SUPABASE_KEY") or ""),
-            "event": str(c.get("EVENT") or ""), "data": 폴더주소(str(c.get("DATA_URL") or 기본주소)),
-            "form": str(c.get("FORM_URL") or "")}
+            "event": str(c.get("EVENT") or ""), "data": 폴더주소(str(c.get("DATA_URL") or 기본주소))}
 
 
 def 폴더주소(주소):

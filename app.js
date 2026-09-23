@@ -184,11 +184,27 @@
     state.prevLeader = leader;
   }
 
+  // 모델별 설정(params)을 짧은 우리말로. 실습실 4쪽의 설정글()과 같은 표기다
+  function paramsText(model, p) {
+    if (!p || typeof p !== 'object') return '';
+    var n = function (v) { return v == null ? '없음' : String(v); };
+    var d = function (v) { return v == null ? '없음' : v + '번'; };
+    switch (model) {
+      case '로지스틱 회귀': return 'C ' + n(p.C);
+      case '의사결정트리': return '질문 ' + d(p.max_depth) + ' · 잎 ' + n(p.min_samples_leaf) + '명';
+      case '랜덤 포레스트': return '나무 ' + n(p.n_estimators) + ' · 질문 ' + d(p.max_depth) + ' · 잎 ' + n(p.min_samples_leaf) + '명';
+      case '그레이디언트 부스팅': return '학습률 ' + n(p.learning_rate) + ' · 반복 ' + n(p.max_iter) + ' · 질문 ' + d(p.max_depth);
+      case 'k-최근접 이웃': return '이웃 ' + n(p.n_neighbors);
+      default: return '';
+    }
+  }
   function settingText(s) {
     if (!s) return '';
     var parts = [];
+    var pt = paramsText(s.model, s.params);
+    if (pt) parts.push(pt);
+    else if (s.depth != null && /트리/.test(s.model || '')) parts.push('질문 ' + s.depth + '번');   // 모델별 설정이 생기기 전의 기록
     if (s.inputs) parts.push('입력 ' + s.inputs);
-    if (s.depth != null && /트리/.test(s.model || '')) parts.push('질문 ' + s.depth + '번');   // 로지스틱 회귀에는 질문 횟수가 없다
     if (s.threshold != null) parts.push('기준값 ' + Number(s.threshold).toFixed(2));
     if (s.missing) parts.push('빈 값 ' + s.missing);
     if (s.validation_f2 != null) parts.push('검증 F2 ' + fmt(s.validation_f2));
@@ -250,7 +266,8 @@
         (H ? '<td class="person">' + esc(p.name || '') + '<span class="detail">' + esc([p.org, p.email].filter(Boolean).join(' · ')) + '</span></td>' +
              '<td class="setting"><span class="detail" style="color:var(--text)">' + esc(b ? modelName(b) : '') +
              (b && b.n_called != null ? ' · 전체 ' + int(b.n_called) + '명에게 전화' : '') + '</span><span class="detail">' +
-             esc(b ? settingText(b.setting) : '') + '</span></td>'
+             esc(b ? settingText(b.setting) : '') + '</span>' +
+             (b && b.setting && b.setting.strategy ? '<span class="detail strategy">전략 ' + esc(b.setting.strategy) + '</span>' : '') + '</td>'
            : '<td class="hide"><span class="detail" style="color:var(--text)">' + esc(b ? modelName(b) : '') + '</span></td>') +
         '<td class="num hide">' + clock(t.last) + '</td></tr>';
     }).join('');
@@ -409,7 +426,7 @@
     return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
   function buildCsv() {
-    var rows = [['팀명', '소속', '성명', '이메일', '공개 순위', '공개 F2', '최종 순위', '최종 F2', '안내 인원', '찾은 환자', '제출 횟수']];
+    var rows = [['팀명', '소속', '성명', '이메일', '공개 순위', '공개 F2', '최종 순위', '최종 F2', '안내 인원', '찾은 환자', '제출 횟수', '전략']];
     var byFinal = !!(state.info && state.info.revealed);   // 최종 점수를 공개했으면 최종 순위 순, 아니면 공개 순위 순
     state.teams.slice().sort(function (a, b) {
       var ra = byFinal ? a.priRank : a.pubRank, rb = byFinal ? b.priRank : b.pubRank;
@@ -417,7 +434,8 @@
     }).forEach(function (t) {
       var b = t.best, p = t.person || {};
       rows.push([t.name, p.org, p.name, p.email, t.pubRank, b ? fmt(b.pub.F2) : '', t.priRank, b && b.pri.F2 != null ? fmt(b.pri.F2) : '',
-                 b ? b.n_called : '', b && b.found_private != null ? b.found + b.found_private : '', t.subs]);
+                 b ? b.n_called : '', b && b.found_private != null ? b.found + b.found_private : '', t.subs,
+                 b && b.setting ? b.setting.strategy || '' : '']);
     });
     return '﻿' + rows.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n') + '\r\n';
   }

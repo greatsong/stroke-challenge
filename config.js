@@ -6,6 +6,5 @@ window.CHALLENGE_CONFIG = {
   SUPABASE_URL: "https://upkakhnpvepqhsbwdyjb.supabase.co",
   SUPABASE_KEY: "sb_publishable_16HKdOESG_9U5OVNGZMeYQ_of--7oV1",
   EVENT: "교사연수-2026",                // 행사 이름. schema.sql로 등록한 event_id와 같아야 한다
-  DATA_URL: "https://greatsong.github.io/stroke-challenge/data/",   // 실습실이 train.csv·test.csv를 읽는 폴더 주소(끝의 / 필요). data/README.md
-  FORM_URL: ""                          // 모델 소개 제출 폼(구글 폼 미리 채운 주소). 비우면 실습실에 제출 버튼이 나오지 않는다
+  DATA_URL: "https://greatsong.github.io/stroke-challenge/data/"    // 실습실이 train.csv·test.csv를 읽는 폴더 주소(끝의 / 필요). data/README.md
 };
