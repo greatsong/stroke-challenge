@@ -84,7 +84,7 @@ alter table public.stroke_challenge_log enable row level security;
 create or replace function public.stroke_challenge_event_info(event text)
 returns table (event_id text, title text, deadline timestamptz, revealed boolean, max_submissions integer,
                n_public integer, pos_public integer, n_private integer, pos_private integer)
-language sql security definer set search_path = public stable as $$
+language sql security definer set search_path = public, extensions stable as $$
   select e.event_id, e.title, e.deadline, e.revealed, e.max_submissions,
          (select count(*)::int from stroke_challenge_labels where part = 'public'),
          (select count(*)::int from stroke_challenge_labels where part = 'public' and stroke = 1),
@@ -95,7 +95,7 @@ $$;
 
 -- 인턴 등록(누구나 넣기만) --------------------------------------------
 create or replace function public.stroke_challenge_register(event text, nick text, org_ text, name_ text, email_ text, consent_ boolean)
-returns jsonb language plpgsql security definer set search_path = public as $$
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare tok uuid; cname text;
 begin
   if not exists (select 1 from stroke_challenge_event e where e.event_id = event) then
@@ -115,7 +115,7 @@ end $$;
 -- 제출과 채점(누구나, 등록한 팀만) -----------------------------------------
 drop function if exists public.stroke_challenge_submit(text, text, integer[], jsonb, text);   -- 열쇠 인자가 없던 옛 판
 create or replace function public.stroke_challenge_submit(event text, nick text, token_ uuid, ids integer[], setting_ jsonb default '{}'::jsonb, source_ text default 'app')
-returns jsonb language plpgsql security definer set search_path = public as $$
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare
   ev stroke_challenge_event%rowtype;
   n_sub integer; bad integer;
@@ -161,7 +161,7 @@ end $$;
 create or replace function public.stroke_challenge_board(event text)
 returns table (nickname text, created_at timestamptz, source text, model text,
                sent integer, found integer, sent_private integer, found_private integer)
-language sql security definer set search_path = public stable as $$
+language sql security definer set search_path = public, extensions stable as $$
   select l.nickname, l.created_at, l.source, l.setting->>'model',
          l.sent_public, l.found_public,
          case when e.revealed then l.sent_private end,
@@ -174,7 +174,7 @@ $$;
 -- 관리자: 명단 -------------------------------------------------------
 create or replace function public.stroke_challenge_roster(pass text, event text)
 returns table (nickname text, org text, name text, email text, created_at timestamptz)
-language sql security definer set search_path = public stable as $$
+language sql security definer set search_path = public, extensions stable as $$
   select t.nickname, t.org, t.name, t.email, t.created_at
   from stroke_challenge_team t join stroke_challenge_event e on e.event_id = t.event_id
   where t.event_id = event and e.admin_pass = crypt(pass, e.admin_pass)
@@ -185,7 +185,7 @@ $$;
 create or replace function public.stroke_challenge_admin_board(pass text, event text)
 returns table (nickname text, created_at timestamptz, source text, setting jsonb, n_called integer,
                sent integer, found integer, sent_private integer, found_private integer)
-language sql security definer set search_path = public stable as $$
+language sql security definer set search_path = public, extensions stable as $$
   select l.nickname, l.created_at, l.source, l.setting, l.n_called,
          l.sent_public, l.found_public, l.sent_private, l.found_private
   from stroke_challenge_log l join stroke_challenge_event e on e.event_id = l.event_id
@@ -197,7 +197,7 @@ $$;
 create or replace function public.stroke_challenge_admin_info(pass text, event text)
 returns table (event_id text, title text, deadline timestamptz, revealed boolean, max_submissions integer,
                n_public integer, pos_public integer, n_private integer, pos_private integer)
-language sql security definer set search_path = public stable as $$
+language sql security definer set search_path = public, extensions stable as $$
   select e.event_id, e.title, e.deadline, e.revealed, e.max_submissions,
          (select count(*)::int from stroke_challenge_labels where part = 'public'),
          (select count(*)::int from stroke_challenge_labels where part = 'public' and stroke = 1),
@@ -208,7 +208,7 @@ $$;
 
 -- 관리자: 최종 점수 공개·마감 바꾸기(host.html에서 암호로) -----------------------
 create or replace function public.stroke_challenge_set_event(pass text, event text, revealed_ boolean default null, deadline_ timestamptz default null, clear_deadline boolean default false)
-returns jsonb language plpgsql security definer set search_path = public as $$
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare ev stroke_challenge_event%rowtype;
 begin
   select * into ev from stroke_challenge_event e where e.event_id = event and e.admin_pass = crypt(pass, e.admin_pass);
