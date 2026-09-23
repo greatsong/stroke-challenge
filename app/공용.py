@@ -39,12 +39,12 @@ def 속성_더하기(df):
 
 def 데이터_읽기():
     """train.csv(정답 있음, 30,380명). bmi 열의 빈 값은 그대로 빈 값으로 남는다."""
-    return pd.read_csv(설정_읽기()["data"] + "train.csv", encoding="utf-8")
+    return pd.read_csv(설정_읽기()["data"] + "train.csv", encoding="utf-8", compression=None)   # Pages가 gzip으로 보내면 브라우저가 이미 풀어 준다
 
 
 def 테스트_읽기():
     """test.csv(정답 없음, 13,020명). 전화를 걸 사람을 이 안에서 고른다."""
-    return pd.read_csv(설정_읽기()["data"] + "test.csv", encoding="utf-8")
+    return pd.read_csv(설정_읽기()["data"] + "test.csv", encoding="utf-8", compression=None)
 
 
 def 호출(설정, 함수, 인자, 방법="POST"):
