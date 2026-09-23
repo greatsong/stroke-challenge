@@ -13,15 +13,15 @@
 ## 빈 값
 
 - `bmi` 1,462명 비어 있음. 실습실에서 「지운다」 또는 「훈련용 중앙값으로 채운다」를 고릅니다.
-- `smoking_status` 13,292명 비어 있음(30.6%). 실습실의 「현재 흡연」 속성은 값이 정확히 `smokes`인 사람만 1이고 비어 있는 사람은 0입니다. 캐글 5,110명 판의 `Unknown`이 이 빈 값에 해당합니다.
+- `smoking_status` 13,292명 비어 있음(30.6%). 실습실의 「현재 흡연 여부」 속성은 값이 정확히 `smokes`인 사람만 1이고 비어 있는 사람은 0입니다. 캐글 5,110명 판의 `Unknown`이 이 빈 값에 해당합니다.
 
 ## 실습실이 쓰는 파생 속성
 
 | 속성 | 정의 |
 |---|---|
 | 결혼 여부 | `ever_married == "Yes"` |
-| 현재 흡연 | `smoking_status == "smokes"` |
-| 자영업 | `work_type == "Self-employed"` |
-| 남성 | `gender == "Male"` |
+| 현재 흡연 여부 | `smoking_status == "smokes"` |
+| 자영업 여부 | `work_type == "Self-employed"` |
+| 성별 | `gender == "Male"`이면 1(남성), 아니면 0 |
 
 실습실(`app/`)과 정답(서버의 `stroke_challenge_labels`, `scripts/make_split.py`로 만든다)은 같은 파생 속성 정의를 사용합니다. 정의를 바꾸면 실습실과 분할 스크립트를 함께 바꾸고 정답을 다시 만듭니다.

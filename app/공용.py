@@ -27,7 +27,7 @@ def 폴더주소(주소):
 
 
 def 속성_더하기(df):
-    """글자로 적힌 열에서 예·아니요 속성을 만든다. 흡연 상태가 비어 있는 사람(약 30%)은 현재 흡연 0으로 둔다."""
+    """글자로 적힌 열에서 예·아니요 속성을 만든다. 흡연 상태가 비어 있는 사람(약 30%)은 현재 흡연 여부 0으로 둔다."""
     df = df.copy()
     df["married"] = (df["ever_married"] == "Yes").astype(int)
     df["smokes"] = (df["smoking_status"] == "smokes").astype(int)

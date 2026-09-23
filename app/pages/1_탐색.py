@@ -93,8 +93,8 @@ def 상관_집계():
     df = 속성_더하기(데이터_읽기())
     열들 = ["age", "avg_glucose_level", "bmi", "hypertension", "heart_disease",
             "married", "smokes", "self_employed", "male", "stroke"]
-    이름 = {**열이름, "married": "결혼 여부(예=1)", "smokes": "현재 흡연(예=1)",
-            "self_employed": "자영업(예=1)", "male": "남성(예=1)"}
+    이름 = {**열이름, "married": "결혼 여부(예=1)", "smokes": "현재 흡연 여부(예=1)",
+            "self_employed": "자영업 여부(예=1)", "male": "성별(남성=1)"}
     return df[열들].corr().round(2).rename(index=이름, columns=이름)
 
 

@@ -10,7 +10,9 @@
   'use strict';
   var C = window.CHALLENGE_CONFIG || {};
   var URL_ = (C.SUPABASE_URL || '').replace(/\/$/, ''), KEY = C.SUPABASE_KEY || '', EVENT = C.EVENT || '';
-  var HOST = window.CHALLENGE_MODE === 'host';
+  // 페이지 모드: intro(index.html, 행사 정보만) · board(leaderboard.html, 참가자 순위판) · host(host.html, 진행자)
+  var MODE = window.CHALLENGE_MODE || 'board';
+  var HOST = MODE === 'host', INTRO = MODE === 'intro';
   var PASS_KEY = 'stroke_challenge_admin_pass';
 
   var $ = function (id) { return document.getElementById(id); };
@@ -347,9 +349,11 @@
     var list = sorted(buildTeams());
     state.teams = list;
     drawSummary(list);
-    drawPodium(list);
-    drawTable(list);
-    drawPlot(list);
+    if (!INTRO) {                                        // 소개 화면에는 순위판이 없다
+      if ($('podium')) drawPodium(list);
+      if ($('thead') && $('tbody')) drawTable(list);
+      drawPlot(list);
+    }
     state.first = false;
   }
 
@@ -365,7 +369,8 @@
 
   function read() {
     if (!URL_ || !KEY) { status(false, '설정이 없어 순위판을 열 수 없습니다.'); notice('config.js에 SUPABASE_URL과 SUPABASE_KEY가 없습니다.'); return Promise.resolve(); }
-    var jobs = [rpc('stroke_challenge_event_info', { event: EVENT }, 'GET'), rpc('stroke_challenge_board', { event: EVENT }, 'GET')];
+    var jobs = [rpc('stroke_challenge_event_info', { event: EVENT }, 'GET')];
+    if (!INTRO) jobs.push(rpc('stroke_challenge_board', { event: EVENT }, 'GET'));
     if (HOST && state.pass) {
       jobs.push(rpc('stroke_challenge_admin_board', { pass: state.pass, event: EVENT }, 'POST'));
       jobs.push(rpc('stroke_challenge_roster', { pass: state.pass, event: EVENT }, 'POST'));
@@ -439,7 +444,7 @@
     });
     return '﻿' + rows.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n') + '\r\n';
   }
-  function boardUrl() { return location.href.replace(/[?#].*$/, '').replace(/host\.html$/, ''); }
+  function boardUrl() { return location.href.replace(/[?#].*$/, '').replace(/[^\/]*$/, '') + 'leaderboard.html'; }
   function mailHref() {
     var emails = state.roster.map(function (p) { return p.email; }).filter(Boolean);
     var subject = 'DS 건강검진센터 인턴 미션 최종 결과';

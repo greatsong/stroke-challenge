@@ -7,12 +7,13 @@
 <meta name="description" content="검진 기록으로 상담 전화를 걸 사람을 고르는 데이터 과학 챌린지의 안내와 순위판입니다.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩺</text></svg>">
 <link rel="stylesheet" href="assets/style.css?v=tb16">
-<link rel="stylesheet" href="assets/board.css?v=9">
+<link rel="stylesheet" href="assets/board.css?v=10">
 </head>
 <body>
 <div class="topbar"><div class="inner">
   <a class="brand" href="./"><span class="chick">🩺</span> DS 건강검진센터 <span class="a" id="eventTitle">인턴 미션</span></a>
   <span class="spacer"></span>
+  <a class="home" href="leaderboard.html">인턴 순위판 →</a>
   <span class="badge final" id="finalChip" hidden>최종 결과 발표</span>
   <span class="badge" id="deadlineChip">불러오는 중</span>
 </div></div>
@@ -23,6 +24,7 @@
   <h1>뇌졸중 위험 예측 <span class="a">챌린지</span></h1>
   <div class="under"></div>
   <p class="lead">검진 기록 13,020명 가운데 뇌졸중 위험이 있는 사람을 찾아 상담 전화 목록을 제출하고, 순위판에서 겨루는 데이터 과학 챌린지입니다. 센터장의 편지가 미션 설명입니다.</p>
+  <div class="links"><a class="btn primary big" href="leaderboard.html">인턴 순위판 열기 →</a><a class="btn big" href="app/" target="_blank" rel="noopener">실습실 열기</a></div>
 
   <!-- 센터장의 편지. 본문은 docs/letter_draft.txt 그대로 -->
   <div class="letter" aria-label="센터장의 편지">
@@ -69,45 +71,10 @@
         <a class="btn" href="data/sample_submission.csv" download>제출 양식</a>
       </div></li>
     <li><span class="st">순위판 확인</span>
-      <p>제출하면 공개 절반의 점수가 바로 아래 순위판에 표시됩니다. 최종 순위는 마감 뒤 발표합니다.</p>
-      <div class="links"><a class="btn" href="#board">순위판으로 이동</a></div></li>
+      <p>제출하면 공개 절반의 점수가 바로 순위판에 표시됩니다. 최종 순위는 마감 뒤 발표합니다.</p>
+      <div class="links"><a class="btn primary big" href="leaderboard.html">인턴 순위판 열기 →</a></div></li>
   </ol>
 
-  <!-- 순위판 -->
-  <section id="board" aria-label="순위판">
-    <h2>인턴 순위판</h2>
-    <p class="quiet" id="boardLead"></p>
-    <div class="ctl">
-      <div class="seg" id="viewSeg" hidden>
-        <button type="button" data-v="public">공개 순위</button><button type="button" data-v="final">최종 순위</button>
-      </div>
-      <div class="live"><span class="dot off" id="liveDot"></span><span id="liveText">읽는 중입니다</span></div>
-    </div>
-    <div class="callout warn" id="notice" hidden></div>
-
-    <div class="podium" id="podium"></div>
-
-    <div class="kpi">
-      <div><div class="t">참가 팀</div><div class="v" id="kTeams">—</div></div>
-      <div><div class="t">제출 수</div><div class="v" id="kSubs">—</div></div>
-      <div><div class="t" id="kBestLabel">지금 최고 F2</div><div class="v" id="kBest">—</div></div>
-      <div><div class="t">마감까지</div><div class="v sm" id="kLeft">—</div></div>
-    </div>
-
-    <div class="callout ask" aria-live="polite">
-      <div class="h">센터장 한마디</div>
-      <p id="bossSay">순위판을 불러오고 있습니다.</p>
-    </div>
-
-    <h3>순위</h3>
-    <div class="tablewrap">
-      <table class="board"><thead id="thead"></thead><tbody id="tbody"></tbody></table>
-    </div>
-
-    <h3>시간에 따른 기록</h3>
-    <div id="plot"></div>
-    <p class="mini">점 하나가 제출 하나입니다. 가로축은 제출 시각, 세로축은 공개 F2입니다. 선은 그 시각까지의 최고 기록입니다. 점수를 계산할 수 없는 제출은 표시하지 않습니다.</p>
-  </section>
 </main>
 </div>
 
@@ -116,8 +83,8 @@
   <p>교육 목적으로만 사용합니다. 결과를 실제 의료 판단에 사용하지 않습니다.</p>
 </footer>
 
+<script>window.CHALLENGE_MODE = "intro";</script>
 <script src="config.js?v=4"></script>
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>
