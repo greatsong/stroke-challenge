@@ -40,14 +40,6 @@
   .kpi .t { font-size:.82rem; color:var(--text-soft); }
   .kpi .v { font-size:1.55rem; font-weight:800; color:var(--text); }
 
-  /* 반 대항 */
-  .vs { display:grid; grid-template-columns:1fr 1fr; gap:.9rem; margin:0 0 1.6rem; }
-  .vs .side { border:1px solid var(--border); border-radius:var(--radius-sm); padding:.75rem .9rem; background:var(--bg); }
-  .vs .side .n { font-weight:700; font-size:.95rem; }
-  .vs .side .b { font-size:1.9rem; font-weight:800; color:var(--accent); }
-  .vs .side .s { font-size:.8rem; color:var(--text-soft); }
-  .vs .side.win { background:var(--green-soft); border-color:var(--green); }
-
   /* 순위표 */
   .board { width:100%; border-collapse:separate; border-spacing:0 .4rem; }
   .board th { font-size:.8rem; color:var(--text-soft); text-align:left; padding:0 .6rem .2rem; font-weight:700; }
@@ -74,6 +66,7 @@
   .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
   .set2 { font-size:.76rem; color:var(--text-soft); overflow-wrap:anywhere; }
   .quiet { color:var(--text-soft); font-size:.9rem; }
+  .up { color:var(--green); font-weight:800; } .down { color:var(--red); font-weight:800; } .same { color:var(--muted); }
   #plot { width:100%; height:360px; }
   @media (max-width:720px){
     .podium { grid-template-columns:1fr; } .vs { grid-template-columns:1fr; }
@@ -93,19 +86,14 @@
   <span class="eyebrow">뇌졸중 예측 챌린지</span>
   <h1>성능 높이기 <span class="a">챌린지 순위판</span></h1>
   <div class="under"></div>
-  <p class="lead" id="설명">목표마다 순위를 따로 셉니다. 점수가 같으면 그 점수를 먼저 올린 팀이 앞섭니다.</p>
+  <p class="lead" id="설명">겨루는 동안의 순위입니다. F1이 높을수록 앞서고, 같으면 그 점수를 먼저 올린 팀이 앞섭니다.</p>
   <p class="mini"><a href="app/" target="_blank" rel="noopener">🩺 실습실에서 기록 올리기 →</a></p>
 
   <div class="ctl">
-    <div class="seg" id="목표">
-      <button data-v="정확도">정확도</button>
-      <button data-v="재현율">재현율</button>
-      <button data-v="정밀도">정밀도</button>
-      <button data-v="F1">F1</button>
-      <button data-v="정원" class="on">정원 안 찾아낸 환자</button>
+    <div class="seg" id="모드">
+      <button data-v="F1" class="on">공개 순위 · F1</button>
+      <button data-v="F2">최종 순위 · F2</button>
     </div>
-  </div>
-  <div class="ctl">
     <div class="live"><span class="dot" id="불"></span><span id="상태">읽는 중…</span></div>
   </div>
 
@@ -114,30 +102,22 @@
   <div class="kpi">
     <div><div class="t">참가한 팀</div><div class="v" id="s인원">—</div></div>
     <div><div class="t">올린 기록</div><div class="v" id="s시도">—</div></div>
-    <div><div class="t">베이스라인 통과</div><div class="v" id="s넘김">—</div></div>
-    <div><div class="t">지금 최고</div><div class="v" id="s최고">—</div></div>
+    <div><div class="t" id="s최고제목">지금 최고 F1</div><div class="v" id="s최고">—</div></div>
   </div>
 
   <h2>순위</h2>
-  <table class="board"><thead><tr>
-    <th class="rank">#</th><th>팀명</th><th>찾아낸 환자 · 대상자 중 비율</th>
-    <th class="num">안내</th>
-    <th class="num hide">정확도</th><th class="num">재현율</th>
-    <th class="num hide">정밀도</th><th class="num">F1</th>
-    <th class="hide">모델</th><th class="num">시도</th><th class="num hide">마지막</th>
-  </tr></thead><tbody id="순위"></tbody></table>
+  <table class="board"><thead id="표머리"></thead><tbody id="순위"></tbody></table>
 
   <h2>시간에 따른 기록</h2>
   <div id="plot"></div>
-  <p class="mini">점 하나가 올린 기록 하나입니다. 가로축은 올린 시각, 세로축은 찾아낸 환자 수입니다.
-  정원을 넘긴 기록은 옅게 표시하고 순위에서 뺍니다.</p>
+  <p class="mini">점 하나가 올린 기록 하나입니다. 가로축은 올린 시각, 세로축은 그 기록의 점수입니다.</p>
 </main>
 </div>
 
 <footer class="foot">뇌졸중 예측 챌린지 · 데이터는 교육 목적으로만 사용합니다</footer>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
-<script src="key.js?v=2"></script>
+<script src="key.js?v=3"></script>
 <script src="config.js"></script>
-<script src="app.js?v=1"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

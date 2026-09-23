@@ -5,7 +5,7 @@
 순위판은 이 표로 올라온 기록이 실제로 나올 수 있는 값인지 대조한다.
 설정과 결과는 일대일로 정해지므로, 표와 다르면 손으로 고친 기록이다.
 
-열쇠 형식: 빈값처리(0·1) + 가중치(0·1) + 속성번호 + 모델(L, 또는 T와 질문 횟수)
+열쇠 형식: 빈값처리(0·1) + 가중치(항상 1) + 속성번호(0~8) + 모델(L, 또는 T와 질문 횟수)
 값 형식: 기준값 0.05~0.95(0.05 간격) 차례대로 [안내 인원, 찾아낸 환자] 19쌍
 2026-09-23부터 기준값을 두 모델 모두에 적용한다. 그 전의 트리 기록은 기준값과 상관없이
 predict로 채점됐다. 확률이 정확히 0.5인 잎에서 predict는 0으로, 기준 0.50은 1로 답하므로
@@ -26,7 +26,18 @@ from sklearn.tree import DecisionTreeClassifier
 데이터주소 = "https://raw.githubusercontent.com/greatsong/modudata/main/data/stroke.csv"
 결과파일 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "..", "key.js")
-고를수있는열 = ["age", "avg_glucose_level", "bmi", "hypertension", "heart_disease"]
+고를수있는열 = ["age", "avg_glucose_level", "bmi", "hypertension", "heart_disease",
+              "married", "smokes", "self_employed", "male"]
+
+
+def 속성_더하기(df):
+    """앱(app/pages/4_성능_높이기.py)과 같은 정의로 예·아니요 속성을 만든다."""
+    df = df.copy()
+    df["married"] = (df["ever_married"] == "Yes").astype(int)
+    df["smokes"] = (df["smoking_status"] == "smokes").astype(int)
+    df["self_employed"] = (df["work_type"] == "Self-employed").astype(int)
+    df["male"] = (df["gender"] == "Male").astype(int)
+    return df
 기준값들 = [round(0.05 * i, 2) for i in range(1, 20)]
 깊이들 = list(range(1, 11))
 
@@ -35,7 +46,7 @@ def 채점(확률, 실제):
     return [[int((확률 >= 기준).sum()), int(((확률 >= 기준) & (실제 == 1)).sum())] for 기준 in 기준값들]
 
 
-원본 = pd.read_csv(sys.argv[1] if len(sys.argv) > 1 else 데이터주소, encoding="utf-8")
+원본 = 속성_더하기(pd.read_csv(sys.argv[1] if len(sys.argv) > 1 else 데이터주소, encoding="utf-8"))
 표, 머리 = {}, {}
 
 for 결측번호, 결측 in enumerate(("그대로 둔다", "지운다")):
@@ -45,8 +56,8 @@ for 결측번호, 결측 in enumerate(("그대로 둔다", "지운다")):
     y = df["stroke"]
     머리[결측번호] = {"n": int(테스트용.sum()), "pos": int(y[테스트용].sum())}
 
-    for 개수 in range(2, 6):
-        for 뽑기 in itertools.combinations(range(5), 개수):
+    for 개수 in range(2, len(고를수있는열) + 1):
+        for 뽑기 in itertools.combinations(range(len(고를수있는열)), 개수):
             열들 = [고를수있는열[i] for i in 뽑기]
             X = df[열들].copy()
             if "bmi" in 열들 and X["bmi"].isna().any():
@@ -55,7 +66,7 @@ for 결측번호, 결측 in enumerate(("그대로 둔다", "지운다")):
             실제 = y[테스트용].to_numpy()
             속성키 = "".join(str(i) for i in 뽑기)
 
-            for 무게번호, 무게 in enumerate((None, "balanced")):
+            for 무게번호, 무게 in ((1, "balanced"),):          # 챌린지는 가중치 켬 고정
                 맞추기 = StandardScaler().fit(Xtr)
                 로지 = LogisticRegression(max_iter=2000, class_weight=무게).fit(맞추기.transform(Xtr), ytr)
                 확률 = 로지.predict_proba(맞추기.transform(Xte))[:, 1]
@@ -65,9 +76,6 @@ for 결측번호, 결측 in enumerate(("그대로 둔다", "지운다")):
                                                   random_state=0, class_weight=무게).fit(Xtr, ytr)
                     트리확률 = 트리.predict_proba(Xte)[:, 1]
                     표[f"{결측번호}{무게번호}{속성키}T{깊이}"] = 채점(트리확률, 실제)
-                    옛예측 = 트리.predict(Xte)              # 기준값을 쓰지 않던 때의 트리 기록과 대조할 값
-                    표[f"{결측번호}{무게번호}{속성키}P{깊이}"] = [
-                        int(옛예측.sum()), int(((실제 == 1) & (옛예측 == 1)).sum())]
 
 본문 = json.dumps({"head": 머리, "key": 표}, separators=(",", ":"))
 with open(결과파일, "w", encoding="utf-8") as f:

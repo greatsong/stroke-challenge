@@ -15,34 +15,46 @@ st.title("🏆 성능 높이기")
 st.write("데이터를 손보고 다시 학습해 전후를 나란히 놓고 본 뒤, 설정을 바꿔 가며 더 좋은 점수에 도전합니다.")
 
 데이터주소 = "https://raw.githubusercontent.com/greatsong/modudata/main/data/stroke.csv"
-고를수있는열 = ["age", "avg_glucose_level", "bmi", "hypertension", "heart_disease"]
+고를수있는열 = ["age", "avg_glucose_level", "bmi", "hypertension", "heart_disease",
+              "married", "smokes", "self_employed", "male"]
 기본열 = ["age", "avg_glucose_level", "hypertension", "heart_disease"]
 입력이름 = {"age": "나이", "avg_glucose_level": "평균 혈당", "bmi": "체질량지수",
-            "hypertension": "고혈압", "heart_disease": "심장병"}
+            "hypertension": "고혈압", "heart_disease": "심장병", "married": "결혼 여부",
+            "smokes": "현재 흡연", "self_employed": "자영업", "male": "남성"}
+
+
+def 속성_더하기(df):
+    """글자로 적힌 열에서 예·아니요 속성을 만든다. 정답표(scripts/build_key.py)와 같은 정의여야 한다."""
+    df = df.copy()
+    df["married"] = (df["ever_married"] == "Yes").astype(int)
+    df["smokes"] = (df["smoking_status"] == "smokes").astype(int)
+    df["self_employed"] = (df["work_type"] == "Self-employed").astype(int)
+    df["male"] = (df["gender"] == "Male").astype(int)
+    return df
 
 
 def 설정_읽기():
     """config.js의 CHALLENGE_CONFIG를 읽는다. 실습실 index.html이 config.json 파일로 건네준다.
     브라우저 밖(로컬 streamlit)에서는 파일이 없으므로 기본값을 쓴다."""
-    기본 = {"url": "", "key": "", "table": "stroke_challenge_log", "event": "", "quota": 500, "form": ""}
+    기본 = {"url": "", "key": "", "table": "stroke_challenge_log", "event": "", "form": ""}
     try:
         c = json.loads(Path("config.json").read_text(encoding="utf-8"))
         return {"url": str(c.get("SUPABASE_URL", "")), "key": str(c.get("SUPABASE_KEY", "")),
                 "table": str(c.get("TABLE") or 기본["table"]), "event": str(c.get("EVENT", "")),
-                "quota": int(c.get("QUOTA") or 500), "form": str(c.get("FORM_URL") or "")}
+                "form": str(c.get("FORM_URL") or "")}
     except (FileNotFoundError, ValueError):
         return 기본
 
 
 챌린지설정 = 설정_읽기()
-정원 = 챌린지설정["quota"]
+정원 = 500                                              # 기록의 within_quota 칸을 채우는 데만 쓴다
 전이름, 후이름 = "고치기 전 (가중치 그대로)", "고친 뒤 (가중치를 같게)"
 칸수 = 60
 칸수3D = 26
 
 @st.cache_data
 def 데이터_읽기():
-    return pd.read_csv(데이터주소, encoding="utf-8")
+    return 속성_더하기(pd.read_csv(데이터주소, encoding="utf-8"))
 
 def 우리말(열):
     return 입력이름[열]
@@ -50,7 +62,8 @@ def 우리말(열):
 원본 = 데이터_읽기()
 
 고른열 = st.multiselect("입력으로 사용할 속성", 고를수있는열, default=기본열, format_func=우리말,
-                        help="처음에는 나이·평균 혈당·고혈압·심장병 네 가지가 골라져 있습니다.")
+                        help="처음에는 나이·평균 혈당·고혈압·심장병 네 가지가 골라져 있습니다. "
+                             "결혼 여부·현재 흡연·자영업·남성은 예(1)·아니요(0)로 바꾼 속성입니다.")
 입력열 = [열 for 열 in 고를수있는열 if 열 in 고른열]   # 고른 차례와 상관없이 늘 같은 순서로 둔다
 if len(입력열) < 2:
     st.warning("속성을 두 개 이상 골라 주세요. 하나만으로는 그림의 두 축을 만들 수 없습니다.")
@@ -271,10 +284,9 @@ st.dataframe(놓친환자.head(20), width="stretch", hide_index=True)
 st.caption("나이가 적은 순서로 앞 스무 줄까지만 보여 줍니다. 고혈압 칸과 심장병 칸을 함께 읽어 보세요.")
 
 st.divider()
-st.subheader("🏆 챌린지 — 지표를 하나 골라 가장 높여 보기")
-목표이름 = {"정확도": "정확도", "재현율": "재현율", "정밀도": "정밀도", "F1": "F1",
-            "정원": f"정원 {정원}명 안에서 찾아낸 환자"}
-내목표 = st.radio("어떤 지표를 가장 높여 볼까요", list(목표이름), horizontal=True, format_func=목표이름.get)
+st.subheader("🏆 챌린지 — F1을 가장 높여 보기")
+목표이름 = {"F1": "F1"}
+내목표 = "F1"
 결측처리 = st.radio("체질량지수가 비어 있는 사람을 어떻게 할까요", list(빈값이름), horizontal=True,
                     format_func=빈값이름.get,
                     help="중앙값으로 채우면 비어 있는 칸을 훈련용 체질량지수의 중앙값으로 채웁니다.")
@@ -283,9 +295,8 @@ if 결측처리 == "지운다":
     st.caption(f"체질량지수가 비어 있던 {len(원본) - len(df):,}명을 지웠습니다. 그 안에 뇌졸중 환자가 "
                f"{int(원본['stroke'].sum() - df['stroke'].sum()):,}명 들어 있었습니다. "
                f"테스트용에 남은 뇌졸중 환자는 {int(y[테스트용].sum())}명입니다.")
-st.info("고른 지표가 가장 높아지는 설정을 찾습니다. 점수가 같으면 먼저 올린 팀이 앞섭니다. "
-        f"마지막 목표는 안내 인원이 상담 정원 {정원}명 이하인 채로 찾아낸 환자를 가장 많이 만드는 것입니다. "
-        "지표를 높일 때 찾아낸 환자는 어떻게 되는지 함께 봅니다. 테스트 데이터로 채점합니다.")
+st.info("테스트 데이터에서 F1이 가장 높아지는 설정을 찾습니다. 순위판은 F1로 매기고, 점수가 같으면 먼저 올린 팀이 앞섭니다. "
+        "F1을 높일 때 찾아낸 환자와 안내 인원이 어떻게 되는지 함께 봅니다. 마감 뒤 최종 순위는 따로 발표합니다.")
 st.caption("비교에 쓰는 기본 설정은 위쪽 전후 비교와 같습니다. 가중치 그대로 · 질문 3번 · 기준값 0.50. "
            "챌린지에서는 두 모델 모두 양쪽의 가중치를 같게 맞춰 학습하고, 빈 값을 지운 채 기준값 0.60에서 시작합니다. "
            "기준값은 두 모델에 모두 적용됩니다. 확률이 기준값 이상이면 뇌졸중이라고 답합니다.")
@@ -348,25 +359,23 @@ for 자리번호, 모델이름 in enumerate(("확률로 답하는 모델", "질�
     내기록[모델이름] = {"찾아낸 환자": TP, "안내 인원": TP + FP,
                         "정확도": 정확도, "재현율": 재현율, "정밀도": 정밀도, "F1": F1}
 좋은모델, 값 = max(내기록.items(), key=lambda x: 순서(x[1], 내목표))
-성적칸[0].metric(목표이름[내목표] if 내목표 != "정원" else "정원 안에서 찾아낸 환자",
-                 점수글(값, 내목표) if 내목표 != "정원" or 값["안내 인원"] <= 정원 else "정원 초과")
+성적칸[0].metric("F1", 점수글(값, 내목표))
 성적칸[1].metric("찾아낸 환자", f"{값['찾아낸 환자']}명", f"전체 대상자 {int(y[테스트용].sum())}명")
-성적칸[2].metric("안내 인원", f"{값['안내 인원']:,}명", f"정원 {정원}명")
-성적칸[3].metric("정원 안에 드는가", "예" if 값["안내 인원"] <= 정원 else "아니요")
+성적칸[2].metric("안내 인원", f"{값['안내 인원']:,}명")
+성적칸[3].metric("정밀도 · 재현율", f"{소수(값['정밀도'])} · {소수(값['재현율'])}")
 st.caption(f"네 지표 · 정확도 {소수(값['정확도'])} · 재현율 {소수(값['재현율'])} · "
            f"정밀도 {소수(값['정밀도'])} · F1 {소수(값['F1'])}")
-st.caption(f"두 모델 가운데 고른 목표에서 앞서는 쪽인 {병기(좋은모델)}의 성적입니다.")
+st.caption(f"두 모델 가운데 F1이 앞서는 쪽인 {병기(좋은모델)}의 성적입니다.")
 
 기록파일 = Path("내_기록") / "최고_기록.json"      # 새로고침해도 남도록 목표마다 최고 기록을 파일에 적어 둔다
 if "최고기록" not in st.session_state:
     try:
         읽은것 = json.loads(기록파일.read_text(encoding="utf-8"))
-        # 목표를 나누기 전(2026-09-23 이전)의 파일은 기록 하나였다. 정원 목표의 기록으로 옮긴다
-        st.session_state["최고기록"] = {"정원": 읽은것} if "찾아낸 환자" in 읽은것 else 읽은것
+        st.session_state["최고기록"] = 읽은것 if "F1" in 읽은것 else {}
     except (FileNotFoundError, ValueError, TypeError):
         st.session_state["최고기록"] = {}
 최고들 = st.session_state["최고기록"]
-if 내목표 != "정원" or 값["안내 인원"] <= 정원:
+if True:
     이전 = 최고들.get(내목표)
     if 이전 is None or 점수(값, 내목표) > 점수(이전, 내목표):      # 같은 점수면 먼저 낸 기록을 남긴다
         최고들[내목표] = {"찾아낸 환자": 값["찾아낸 환자"], "안내 인원": 값["안내 인원"],
@@ -381,9 +390,7 @@ if 최고:
     st.success(f"「{목표이름[내목표]}」 최고 기록 · {점수글(최고, 내목표)} · 찾아낸 환자 {최고['찾아낸 환자']}명 "
                f"(안내 {최고['안내 인원']:,}명) · {병기(최고['모델'])} · 입력 {' · '.join(최고['입력'])} · "
                f"빈 값 {빈값이름[최고['빈 값']]} · 질문 {최고['깊이']}번 · 기준값 {최고['기준값']:.2f}")
-    st.caption("목표마다 최고 기록이 따로 남고, 모델 소개 페이지에 모아서 표시됩니다. 새로고침해도 이 브라우저에 남습니다.")
-else:
-    st.warning("아직 정원 안에 든 기록이 없습니다. 안내 인원을 500명 이하로 만들어 보세요.")
+    st.caption("최고 기록은 모델 소개 페이지에도 표시됩니다. 새로고침해도 이 브라우저에 남습니다.")
 
 st.markdown("**기본 설정과 내 설정 · 훈련용과 테스트용**")
 설정 = {"기본 설정": 기본설정, "내 설정": 내설정}
@@ -511,8 +518,7 @@ elif 보낼까:
         st.session_state["올린것"].add(지문)
         자리 = 순위세기(줄들, 내팀명.strip(), 내목표)
         if 자리 is None:
-            st.warning(f"안내 인원이 {보낼것['sent']:,}명이라 정원 {정원}명을 넘겼습니다. "
-                       f"기록은 남았지만 순위에는 들어가지 않습니다. 안내 인원을 줄여 보세요.")
+            st.warning("기록은 남았지만 순위를 세지 못했습니다. 순위판에서 확인해 보세요.")
         else:
             위쪽 = 자리["전체등수"] / 자리["전체인원"] * 100
             내것 = 자리["내것"]
@@ -521,8 +527,5 @@ elif 보낼까:
                        f"같은 목표 {자리['전체인원']}팀 가운데 **{자리['전체등수']}위** · 상위 {위쪽:.1f}%")
             if 자리["전체등수"] == 1:
                 st.info("지금 1위입니다.")
-            if 내목표 == "정원" and 내것["찾아낸 환자"] > 67:
-                st.info("기본 설정의 67명을 넘겼습니다.")
-                st.balloons()
 
 st.markdown(f"[📊 순위판 열기]({순위판주소})")
